@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#101b32" />
+    <meta name="description" content="Proofolio turns real work into a trustworthy, evidence-backed skill passport." />
+    <title>Proofolio — Your work, made visible</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <a class="brand" href="#overview" aria-label="Proofolio home">
+          <span class="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3.5 27 9.8v12.4l-11 6.3-11-6.3V9.8L16 3.5Z"/><path d="m10.3 16.1 3.7 3.7 7.8-8"/></svg></span>
+          <span>proofolio<span class="brand-dot">.</span></span>
+        </a>
+
+        <div class="workspace-label">WORKSPACE</div>
+        <nav class="side-nav" aria-label="Main navigation">
+          <button class="nav-link active" data-page="overview"><span class="nav-icon">⌂</span> Overview</button>
+          <button class="nav-link" data-page="skills"><span class="nav-icon">✳</span> My skills <span class="nav-count" id="nav-skill-count">8</span></button>
+          <button class="nav-link" data-page="roles"><span class="nav-icon">◎</span> Role match</button>
+          <button class="nav-link" data-page="learning"><span class="nav-icon">↗</span> Learning plan</button>
+        </nav>
+
+        <div class="sidebar-divider"></div>
+        <div class="workspace-label">YOUR PASSPORT</div>
+        <button class="passport-mini" data-page="passport">
+          <span class="passport-mini-icon">↗</span><span><strong>Public view</strong><small>See what recruiters see</small></span><span class="arrow">↗</span>
+        </button>
+
+        <div class="sidebar-bottom">
+          <div class="privacy-card"><span class="privacy-icon">◈</span><div><strong>Your data, your call</strong><p>Only share what you choose.</p></div></div>
+          <button class="profile-switch" id="profile-button"><span class="avatar avatar-small">AS</span><span class="profile-name"><strong>Aarav Shah</strong><small>Student profile</small></span><span class="more">···</span></button>
+        </div>
+      </aside>
+
+      <main class="main-area">
+        <header class="topbar">
+          <button class="mobile-menu" id="mobile-menu" aria-label="Open navigation">☰</button>
+          <div class="breadcrumb">Workspace <span>/</span> <strong id="breadcrumb-page">Overview</strong></div>
+          <div class="topbar-actions"><span class="synced"><i></i> All changes saved</span><button class="icon-button" aria-label="Notifications" id="notification-button">♧<b></b></button><button class="top-avatar">AS</button></div>
+        </header>
+
+        <div class="page-content">
+          <section class="page-view active" id="page-overview">
+            <div class="welcome-row"><div><div class="eyebrow"><span class="eyebrow-dot"></span> YOUR SKILLS, WITH PROOF</div><h1>Good morning, Aarav <span class="wave">✦</span></h1><p class="intro">Your work tells a story. Let’s make it easy to see.</p></div><button class="button button-primary" id="add-work-button"><span>＋</span> Add work</button></div>
+
+            <div class="hero-card">
+              <div class="hero-copy"><div class="hero-pill"><span>✳</span> YOUR SKILL PASSPORT IS TAKING SHAPE</div><h2>Make your work<br />speak for itself.</h2><p>We found <strong>8 skills</strong> across your projects and resume. Every one points back to the work behind it.</p><button class="button button-white" data-page="passport">View your passport <span>↗</span></button></div>
+              <div class="hero-visual" aria-label="Passport summary illustration"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="orbit orbit-three"></div><div class="hero-glow"></div><div class="passport-preview"><div class="preview-top"><div class="avatar avatar-large">AS</div><span class="verified-badge">✦ Evidence-backed</span></div><div class="preview-name">Aarav Shah</div><div class="preview-role">Aspiring Software Engineer</div><div class="preview-rule"></div><div class="preview-skills"><span>Python <i>↗</i></span><span>React <i>↗</i></span><span>SQL <i>↗</i></span><span class="more-skill">+5</span></div><div class="preview-foot"><span>8 skills with evidence</span><span class="preview-spark">✳</span></div></div><span class="float-tag tag-code">&lt;/&gt; <b>Code</b></span><span class="float-tag tag-check">✓ <b>Verified</b></span><span class="float-tag tag-chart">↗ <b>Growing</b></span></div>
+              <div class="hero-bottom"><div><span class="hero-bottom-icon">✦</span><span><strong>Built from real work</strong><small>Projects · Resume · Contributions</small></span></div><span class="hero-bottom-link" data-page="skills">Explore evidence <b>→</b></span></div>
+            </div>
+
+            <div class="section-heading"><div><h2>Your snapshot</h2><p>A clear view of where you stand today.</p></div><button class="text-button" data-page="skills">See all skills <span>→</span></button></div>
+            <div class="stats-grid"><article class="stat-card"><div class="stat-top"><span class="stat-icon violet">✳</span><span class="stat-trend">↑ 2 this week</span></div><div class="stat-number" id="stat-skill-count">08</div><div class="stat-label">Skills with evidence</div><div class="stat-foot"><span class="mini-avatars"><i>GH</i><i>CV</i><i>✦</i></span><span>from 3 sources</span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-icon mint">◎</span><span class="stat-caption">YOUR TARGET</span></div><div class="stat-number stat-role">Software<br />Engineer</div><div class="stat-label">Selected role</div><div class="stat-foot"><button class="inline-link" data-page="roles">Change role →</button></div></article><article class="stat-card"><div class="stat-top"><span class="stat-icon amber">↗</span><span class="stat-trend neutral">2 to strengthen</span></div><div class="stat-number">74<span class="percent">%</span></div><div class="stat-label">Role readiness</div><div class="progress-track"><span style="width:74%"></span></div></article><article class="stat-card"><div class="stat-top"><span class="stat-icon blue">◷</span><span class="stat-caption">THIS MONTH</span></div><div class="stat-number">4.5<span class="hours"> hrs</span></div><div class="stat-label">Learning time planned</div><div class="stat-foot"><span class="foot-dot"></span><span>One small step at a time</span></div></article></div>
+
+            <div class="dashboard-columns"><section class="panel skills-panel"><div class="panel-heading"><div><h2>Skills in focus</h2><p>Evidence you can click through.</p></div><button class="kebab" aria-label="More options">···</button></div><div class="skill-list" id="overview-skill-list"></div><button class="panel-footer-link" data-page="skills">Explore all your skills <span>→</span></button></section>
+              <section class="panel role-panel"><div class="panel-heading"><div><h2>Role readiness</h2><p>Junior Software Engineer</p></div><button class="icon-button subtle" data-page="roles" aria-label="Open role matching">↗</button></div><div class="readiness"><div class="readiness-ring"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="49"/><circle class="ring-value" cx="60" cy="60" r="49"/></svg><div><strong>74<small>%</small></strong><span>match</span></div></div><div class="readiness-copy"><strong>You’re on your way</strong><span>Strong foundation in 6 of 8 core skills.</span><button class="inline-link" data-page="roles">See your breakdown →</button></div></div><div class="role-divider"></div><div class="role-bottom"><div class="role-company-icon">✿</div><span><strong>Junior Software Engineer</strong><small>Role profile · Updated today</small></span><span class="role-open">↗</span></div></section></div>
+
+            <section class="next-step-card"><div class="next-icon">✦</div><div class="next-copy"><span class="next-label">A GOOD NEXT STEP</span><strong>Show your testing skills in action</strong><p>One small test suite could turn your JavaScript knowledge into stronger evidence.</p></div><button class="button button-outline" data-page="learning">See your plan <span>→</span></button><div class="next-decoration">✳</div></section>
+            <footer class="page-footer"><span>Proofolio <b>·</b> Your skills, with proof.</span><span><span class="privacy-lock">◈</span> Your profile is private until you share it.</span></footer>
+          </section>
+
+          <section class="page-view" id="page-skills"><div class="inner-page-head"><div><div class="eyebrow"><span class="eyebrow-dot"></span> YOUR EVIDENCE LIBRARY</div><h1>Skills, backed by work.</h1><p>Every skill below links to something you’ve actually made.</p></div><button class="button button-primary" id="skills-add-work">＋ Add work</button></div><div class="filter-row"><div class="search-box"><span>⌕</span><input id="skill-search" type="search" placeholder="Search skills or evidence" /></div><div class="filter-pills"><button class="filter-pill active" data-filter="all">All skills <span id="all-skill-count">8</span></button><button class="filter-pill" data-filter="strong">Strong evidence</button><button class="filter-pill" data-filter="developing">Growing</button></div></div><div class="skills-grid" id="skills-grid"></div></section>
+
+          <section class="page-view" id="page-roles"><div class="inner-page-head"><div><div class="eyebrow"><span class="eyebrow-dot"></span> FIND YOUR NEXT ROLE</div><h1>Where you fit. What’s next.</h1><p>A transparent match, with the reasons behind every score.</p></div><button class="button button-outline" id="edit-role-button">＋ Choose a role</button></div><div class="role-overview-card"><div class="role-overview-main"><span class="role-avatar">✿</span><div><span class="role-kicker">YOUR TARGET ROLE</span><h2 id="selected-role-title">Junior Software Engineer</h2><p>Entry level · Software &amp; technology</p></div></div><div class="role-score"><strong id="role-match-score">74<span>%</span></strong><span>evidence match</span></div><div class="role-summary">Your profile supports <strong>6 of 8</strong> core skills for this role. Two requirements need more evidence. Match is calculated from evidence coverage and level, not resume keywords.</div></div><div class="section-heading role-section-heading"><div><h2>Skill-by-skill breakdown</h2><p>See what supports each requirement and where to grow.</p></div><span class="legend"><i class="legend-dot supported"></i> Supported <i class="legend-dot partial"></i> Partial <i class="legend-dot gap"></i> Gap</span></div><div class="requirements-card" id="requirements-list"></div><div class="role-insight"><span>✦</span><p><strong>How we calculate this</strong> A skill counts toward your match when a cited work sample demonstrates it. Resume-only claims are shown separately and don’t raise your evidence score.</p></div></section>
+
+          <section class="page-view" id="page-learning"><div class="inner-page-head"><div><div class="eyebrow"><span class="eyebrow-dot"></span> SMALL STEPS, REAL PROGRESS</div><h1>Your growth plan.</h1><p>Practical next steps, chosen around the role you want.</p></div><span class="plan-time"><span>◷</span> 4.5 hours planned this week</span></div><div class="learning-hero"><div><span class="learning-kicker">PERSONALISED FOR YOU</span><h2>Build proof as<br />you build skills.</h2><p>Each task strengthens a specific requirement for your target role.</p><div class="learning-progress"><span><i></i></span><small>1 of 4 steps complete</small></div></div><div class="learning-art"><div class="learning-circle c1"></div><div class="learning-circle c2"></div><div class="learning-note note-one"><span>✓</span> Learn by doing</div><div class="learning-note note-two">✳ <b>Make it yours</b></div><div class="learning-plant">✦</div></div></div><div class="section-heading plan-heading"><div><h2>Suggested for your next 2 weeks</h2><p>Curated from the gaps in your skill passport.</p></div><button class="text-button" id="sort-plan">Recommended <span>⌄</span></button></div><div class="plan-list" id="plan-list"></div></section>
+
+          <section class="page-view" id="page-passport"><div class="passport-head"><div><div class="eyebrow"><span class="eyebrow-dot"></span> YOUR SHAREABLE PROFILE</div><h1>A clear picture of what you can do.</h1><p>Evidence-first. Easy to check. Yours to share.</p></div><div class="share-actions"><button class="button button-outline" id="copy-link-button">⧉ Copy link</button><button class="button button-primary" id="share-button">↗ Share passport</button></div></div><div class="share-confirm" id="share-confirm"><span>✓</span> Passport link copied — you’re in control of who sees it.</div><div class="passport-sheet"><div class="passport-sheet-top"><div class="avatar avatar-xl">AS</div><div class="passport-person"><span class="verified-badge">✦ Evidence-backed profile</span><h2>Aarav Shah</h2><p>Computer Science student · Pune, India</p><div class="passport-links"><span>⌘ github.com/aaravshah</span><span>✉ aarav.shah@example.com</span></div></div><button class="icon-button subtle edit-profile" id="edit-profile-button" aria-label="Edit profile">✎</button></div><div class="passport-metrics"><div><strong>08</strong><span>Skills with evidence</span></div><div><strong>03</strong><span>Work samples</span></div><div><strong>74<span>%</span></strong><span>Match · Junior Software Engineer</span></div></div><div class="passport-section"><div class="passport-section-heading"><div><h3>Skills demonstrated</h3><p>Each skill is linked to its source.</p></div><span class="tiny-lock">◈ Public view preview</span></div><div id="passport-skill-list" class="passport-skill-list"></div></div><div class="passport-section projects-section"><div class="passport-section-heading"><div><h3>Selected work</h3><p>Projects where these skills show up.</p></div></div><div class="project-cards" id="project-cards"></div></div><div class="passport-disclaimer"><span>◈</span><p><strong>About this profile</strong> Skills are supported by the linked work samples shown here. This profile does not independently verify authorship or identity.</p></div><div class="passport-end"><span>Made with <b>✳ proofolio</b></span><span>Last updated just now</span></div></div></section>
+        </div>
+      </main>
+    </div>
+
+    <div class="modal-backdrop" id="modal-backdrop" role="presentation"><section class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"></section></div>
+    <div class="toast" id="toast" role="status"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
