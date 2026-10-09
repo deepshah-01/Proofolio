@@ -1,0 +1,22 @@
+Aarav Shah
+aarav.shah@example.test
+Pune, India
+
+SUMMARY
+Computer Science student building small web applications and APIs for campus and community projects.
+
+EXPERIENCE
+Student Developer | Campus Connect | 2025
+- Built React pages with JavaScript and CSS for event discovery and registration.
+- Used Git and GitHub pull requests to coordinate changes with a four-person team.
+
+PROJECTS
+Smart Pantry API | 2024
+- Developed Python and Flask REST APIs with SQL-backed recipe and ingredient data.
+- Added input validation and a small pytest suite for recipe search.
+
+EDUCATION
+Bachelor of Technology, Computer Science | Vishwakarma Institute of Technology | 2023–2027
+
+SKILLS
+Python, JavaScript, React, SQL, Git, Flask, REST APIs, automated testing

@@ -24,7 +24,7 @@ const roleProfiles = {
     {skill:'API development',status:'partial',why:'REST routes with input handling',sid:'api'},
     {skill:'Version control',status:'supported',why:'Project workflow documented in README',sid:'git'},
     {skill:'Automated testing',status:'gap',why:'Resume mention only; no test files found',sid:'testing'},
-    {skill:'Team collaboration',status:'partial',why:'Team project listed; add review evidence',sid:'communication'}
+    {skill:'Team collaboration',status:'gap',why:'Resume mention only; add a review or team artifact',sid:'communication'}
   ],
   'Frontend Developer': [
     {skill:'React',status:'supported',why:'Reusable page components and state',sid:'react'},
@@ -34,14 +34,14 @@ const roleProfiles = {
     {skill:'Accessibility',status:'gap',why:'No accessibility checks found in submitted work',sid:'testing'},
     {skill:'CSS',status:'partial',why:'UI implementation present; limited style evidence',sid:'react'},
     {skill:'Version control',status:'supported',why:'Project workflow documented in README',sid:'git'},
-    {skill:'Team collaboration',status:'partial',why:'Team project listed; add review evidence',sid:'communication'}
+    {skill:'Team collaboration',status:'gap',why:'Resume mention only; add a review or team artifact',sid:'communication'}
   ],
   'Data Analyst': [
     {skill:'SQL',status:'partial',why:'Relational queries and ORM relationships',sid:'sql'},
     {skill:'Python',status:'supported',why:'Data retrieval and service logic',sid:'python'},
     {skill:'Data visualization',status:'gap',why:'No chart or reporting examples found',sid:'api'},
     {skill:'Data cleaning',status:'gap',why:'No reproducible data preparation evidence',sid:'python'},
-    {skill:'Communication',status:'partial',why:'Team contribution listed; add a project write-up',sid:'communication'},
+    {skill:'Communication',status:'gap',why:'Resume mention only; add a project write-up',sid:'communication'},
     {skill:'Git',status:'supported',why:'Project workflow documented in README',sid:'git'}
   ]
 };
@@ -53,7 +53,7 @@ const learningTasks = [
   {title:'Document one design choice',sub:'Explain why your API returns a 404 for a missing recipe.',duration:'45 min',type:'REFLECTION',done:false}
 ];
 
-const state = {skills:initialSkills.map(x=>({...x})), page:'overview', filter:'all', role:'Junior Software Engineer', selectedRole:'Junior Software Engineer', scanTimer:null};
+const state = {skills:initialSkills.map(x=>({...x})), page:'overview', filter:'all', role:'Junior Software Engineer', selectedRole:'Junior Software Engineer', pendingResumeFile:null, parsedResume:null};
 const $ = (selector,root=document)=>root.querySelector(selector);
 const $$ = (selector,root=document)=>Array.from(root.querySelectorAll(selector));
 const escapeHtml = value => String(value).replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -61,10 +61,14 @@ const symbol = skill => `<span class="skill-symbol ${escapeHtml(skill.className)
 const skillById = id => state.skills.find(skill=>skill.id===id) || state.skills[0];
 
 function renderOverview(){
+  const evidenceCount=state.skills.filter(skill=>skill.sourceType==='github').length;
   $('#nav-skill-count').textContent=state.skills.length;
-  $('#stat-skill-count').textContent=String(state.skills.length).padStart(2,'0');
+  $('#stat-skill-count').textContent=String(evidenceCount).padStart(2,'0');
   $('#all-skill-count').textContent=state.skills.length;
-  $('#overview-skill-list').innerHTML=state.skills.slice(0,5).map(skill=>`<div class="skill-row" data-skill="${skill.id}">${symbol(skill)}<span class="skill-row-copy"><strong>${escapeHtml(skill.name)}</strong><small>${escapeHtml(skill.source)}</small></span><span class="skill-level"><strong>${escapeHtml(skill.level)}</strong><small>${skill.score}% evidence</small></span></div>`).join('');
+  $('#passport-skill-count').textContent=String(evidenceCount).padStart(2,'0');
+  const previewCount=$('.preview-foot span:first-child');
+  if(previewCount)previewCount.textContent=`${evidenceCount} skills linked to work`;
+  $('#overview-skill-list').innerHTML=state.skills.slice(0,5).map(skill=>`<div class="skill-row" data-skill="${skill.id}">${symbol(skill)}<span class="skill-row-copy"><strong>${escapeHtml(skill.name)}</strong><small>${escapeHtml(skill.source)}</small></span><span class="skill-level"><strong>${escapeHtml(skill.level)}</strong><small>${skill.sourceType==='resume'?'Resume mention':`${skill.score}% evidence`}</small></span></div>`).join('');
   renderPassport();
 }
 
@@ -84,6 +88,28 @@ function renderRole(){
   const score=Math.round((supported+partial*.5)/requirements.length*100);
   $('#selected-role-title').textContent=state.role;
   $('#role-match-score').innerHTML=`${score}<span>%</span>`;
+  const readinessStat=$('#readiness-stat');
+  if(readinessStat)readinessStat.innerHTML=`${score}<span class="percent">%</span>`;
+  const selectedRoleStat=$('#selected-role-stat');
+  if(selectedRoleStat)selectedRoleStat.textContent=state.role;
+  const roleGapCount=$('#role-gap-count');
+  if(roleGapCount)roleGapCount.textContent=`${requirements.length-supported} to strengthen`;
+  const progress=$('#readiness-progress span');
+  if(progress)progress.style.width=`${score}%`;
+  const readiness=$('#readiness-score');
+  if(readiness)readiness.innerHTML=`${score}<small>%</small>`;
+  const passportRoleScore=$('#passport-role-score');
+  if(passportRoleScore)passportRoleScore.innerHTML=`${score}<span>%</span>`;
+  const passportRoleLabel=$('#passport-role-label');
+  if(passportRoleLabel)passportRoleLabel.textContent=`Match · ${state.role}`;
+  const roleReadinessLabel=$('#readiness-role-name');
+  if(roleReadinessLabel)roleReadinessLabel.textContent=state.role;
+  const roleOverviewName=$('#role-overview-name');
+  if(roleOverviewName)roleOverviewName.textContent=state.role;
+  const matchCoverage=$('#role-match-coverage');
+  if(matchCoverage)matchCoverage.textContent=`Your profile supports ${supported} of ${requirements.length} core skills for this role. ${requirements.length-supported} requirements need stronger evidence.`;
+  const ring=$('.ring-value');
+  if(ring)ring.style.strokeDashoffset=String(307.9*(1-score/100));
   $('#requirements-list').innerHTML=requirements.map(item=>{
     const skill=skillById(item.sid); const label=item.status==='supported'?'Supported':item.status==='partial'?'Partial':'Gap';
     return `<div class="requirement-row"><div class="requirement-name">${symbol(skill)}<strong>${escapeHtml(item.skill)}</strong></div><div class="requirement-evidence">${escapeHtml(item.why)} · <a href="#" data-skill="${skill.id}">View evidence ↗</a></div><div class="requirement-status"><span class="status-pill ${item.status}">${item.status==='supported'?'✓':item.status==='partial'?'◷':'+'} ${label}</span></div></div>`;
@@ -96,6 +122,9 @@ function renderPlan(){
 
 function renderPassport(){
   $('#passport-skill-list').innerHTML=state.skills.filter(x=>x.sourceType!=='resume').slice(0,6).map(skill=>`<div class="passport-skill" data-skill="${skill.id}">${symbol(skill)}<span><strong>${escapeHtml(skill.name)}</strong><small>${escapeHtml(skill.source)} · ${escapeHtml(skill.range)}</small></span><span class="arrow">↗</span></div>`).join('');
+  const resumeClaims=state.skills.filter(skill=>skill.sourceType==='resume');
+  $('#passport-claims-wrap').hidden=resumeClaims.length===0;
+  $('#passport-claims-list').innerHTML=resumeClaims.map(skill=>`<span class="passport-claim" title="${escapeHtml(skill.range)}">${escapeHtml(skill.name)}</span>`).join('');
   $('#project-cards').innerHTML=projects.map(p=>`<div class="project-card"><span class="project-card-icon">${p.symbol}</span><strong>${escapeHtml(p.name)}</strong><small>${escapeHtml(p.kind)}<br>${escapeHtml(p.skills)}</small></div>`).join('');
 }
 
@@ -116,7 +145,7 @@ function openModal(title,subtitle,body,actions=''){
   $('#modal-backdrop').classList.add('open');
   $('#modal').scrollTop=0;
 }
-function closeModal(){ $('#modal-backdrop').classList.remove('open'); }
+function closeModal(){ $('#modal-backdrop').classList.remove('open'); state.parsedResume=null; state.pendingResumeFile=null; }
 function showToast(message){const toast=$('#toast');toast.textContent=message;toast.classList.add('show');clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.classList.remove('show'),2600);}
 
 function showEvidence(skill){
@@ -127,7 +156,88 @@ function showEvidence(skill){
 }
 
 function openAddWork(){
-  openModal('Add work to your passport','Connect a project and add a resume to discover more skills.',`<div class="modal-body"><label class="form-label" for="repo-url">Public GitHub repository</label><input class="form-input" id="repo-url" type="url" placeholder="https://github.com/you/project" /><p class="form-help">For this prototype, repository analysis is shown with sample evidence.</p><label class="form-label" for="resume-file">Resume or project notes</label><div class="upload-zone"><span>⇧</span><strong>Choose a file to add context</strong><small>PDF or TXT · Stored locally in this demo only</small></div><input class="file-input" id="resume-file" type="file" accept=".pdf,.txt,.md" /><div class="modal-tip"><strong>Privacy first:</strong> This front-end prototype does not upload your files or contact GitHub. Its analysis uses sample profile data.</div></div>`,'<div class="modal-actions"><button class="button button-outline" data-close>Cancel</button><button class="button button-primary" id="scan-work-button">Preview sample analysis <span>→</span></button></div>');
+  state.pendingResumeFile=null;
+  state.parsedResume=null;
+  openModal('Import a resume','Extract text and skill mentions, then review every result before adding it.',`<div class="modal-body"><label class="form-label" for="resume-file">Resume file</label><label class="upload-zone" for="resume-file" id="resume-drop-zone"><span>⇧</span><strong id="resume-file-prompt">Choose a resume to parse</strong><small>PDF, DOCX or TXT · Up to 10 MB</small><input id="resume-file" type="file" accept=".pdf,.docx,.txt,.md" /></label><div class="resume-file-meta" id="resume-file-meta" hidden><strong id="resume-file-name"></strong><span id="resume-file-size"></span><button class="resume-remove" id="clear-resume-button" aria-label="Remove selected resume">×</button></div><p class="form-help">Text is extracted locally by the Proofolio service. Scanned-image OCR is not enabled.</p><div class="modal-tip"><strong>Review before adding:</strong> The parser finds terms and cites their page and line. Resume mentions remain self-reported; they do not become verified skills.</div><div class="resume-error" id="resume-import-error" hidden></div></div>`,'<div class="modal-actions"><button class="button button-outline" data-close>Cancel</button><button class="button button-primary" id="parse-resume-button">Parse resume <span>→</span></button></div>');
+}
+
+function formatFileSize(bytes){
+  if(bytes<1024)return `${bytes} B`;
+  if(bytes<1024*1024)return `${(bytes/1024).toFixed(0)} KB`;
+  return `${(bytes/(1024*1024)).toFixed(1)} MB`;
+}
+
+function setResumeFile(file){
+  if(!file)return;
+  const error=$('#resume-import-error');
+  if(error){error.hidden=true;error.textContent='';}
+  state.pendingResumeFile=file;
+  const prompt=$('#resume-file-prompt');
+  const meta=$('#resume-file-meta');
+  const name=$('#resume-file-name');
+  const size=$('#resume-file-size');
+  if(prompt)prompt.textContent='Resume selected';
+  if(meta)meta.hidden=false;
+  if(name)name.textContent=file.name;
+  if(size)size.textContent=formatFileSize(file.size);
+}
+
+function showResumeError(message){
+  openModal('Resume could not be parsed',escapeHtml(message),`<div class="modal-body"><p class="evidence-summary">Your file was not added to the profile. Check the file and try again.</p><div class="modal-tip"><strong>Supported:</strong> text-based PDF, DOCX, and TXT files up to 10 MB. Scanned PDF images need OCR, which is not included yet.</div></div>`,'<div class="modal-actions"><button class="button button-outline" data-close>Close</button><button class="button button-primary" id="retry-resume-button">Try again</button></div>');
+}
+
+async function parseSelectedResume(){
+  const file=state.pendingResumeFile;
+  if(!file){showToast('Choose a resume file first.');return;}
+  if(file.size>10*1024*1024){showToast('The file is over 10 MB. Choose a smaller resume.');return;}
+  const formData=new FormData();
+  formData.append('resume',file,file.name);
+  openModal('Reading resume','Extracting text and checking for supported skill terms.',`<div class="scan-state"><div class="scan-spinner"></div><strong>Building a source-linked review</strong><p>The file is held in memory only while it is parsed.</p></div>`);
+  try{
+    const response=await fetch('/api/parse-resume',{method:'POST',body:formData});
+    const result=await response.json();
+    if(!response.ok)throw new Error(result.error||'The resume could not be parsed.');
+    state.parsedResume=result;
+    openResumeReview(result);
+  }catch(error){
+    showResumeError(error instanceof TypeError?'Could not reach the local parser. Start the app with `python server.py` and open http://127.0.0.1:5000.':error.message);
+  }
+}
+
+function openResumeReview(result){
+  const contact=result.contact||{};
+  const contactRows=[['Possible name · review',contact.name],['Email',contact.email],['Phone',contact.phone]].filter(([,value])=>value);
+  const fileDetails=result.page_count?`${result.file_type} · ${result.page_count} page${result.page_count===1?'':'s'}`:`${result.file_type} · text-line references`;
+  const contactCards=contactRows.length?contactRows.map(([label,value])=>`<div class="parse-summary-card"><span>${label}</span><strong title="${escapeHtml(value)}">${escapeHtml(value)}</strong></div>`).join(''):`<div class="parse-summary-card"><span>Contact details</span><strong>Review manually</strong></div>`;
+  const skillCards=result.skills.length?result.skills.map(skill=>{const location=skill.page?`Page ${skill.page} · line ${skill.line}`:`Text line ${skill.line}`;return `<article class="parsed-skill"><div class="parsed-skill-top"><strong>${escapeHtml(skill.name)}</strong><span class="parsed-skill-source">Resume mention</span></div><p>${escapeHtml(skill.excerpt)}</p><span class="parsed-citation">${location}</span></article>`;}).join(''):`<div class="parsed-empty">No supported skill terms were found. You can still review the detected resume sections below.</div>`;
+  const sections=result.sections.length?result.sections.map(section=>`<article class="parsed-section-card"><header><strong>${escapeHtml(section.name)}</strong><span>${section.page?`Page ${section.page}`:`Line ${section.line}`}</span></header><p>${escapeHtml(section.excerpt||'Section heading found; no following text was available.')}</p></article>`).join(''):`<div class="parsed-empty">No standard section headings detected. Review the text and skill mentions manually.</div>`;
+  openModal('Resume review',`${escapeHtml(result.file_name)} · ${fileDetails}`,`<div class="parse-result"><div class="parse-summary">${contactCards}<div class="parse-summary-card"><span>Skill terms</span><strong>${result.skills.length} found</strong></div><div class="parse-summary-card"><span>Text extracted</span><strong>${result.character_count.toLocaleString()} characters</strong></div></div><div class="parse-section-title">Skill mentions <small>Each item points to source text</small></div><div class="parsed-skill-list">${skillCards}</div><div class="parse-section-title">Sections detected <small>Headings, not quality ratings</small></div><div class="parsed-sections">${sections}</div><div class="parsed-disclaimer">These terms were found in the resume. They are self-reported and stay separate from skills supported by project work.</div></div>`,'<div class="modal-actions"><button class="button button-outline" data-close>Discard</button><button class="button button-primary" id="add-resume-claims-button">Add resume mentions</button></div>');
+}
+
+function addResumeClaims(){
+  const parsed=state.parsedResume;
+  if(!parsed)return;
+  if(parsed.skills.length===0){
+    closeModal();
+    showToast('Resume reviewed. No supported skill terms were found.');
+    return;
+  }
+  const visualByName={Python:['Py','py'],JavaScript:['JS','js'],TypeScript:['TS','js'],React:['R','re'],SQL:['DB','sql'],Git:['⌘','git'],HTML:['H','git'],CSS:['C','git']};
+  let added=0;
+  for(const mention of parsed.skills){
+    const id=`resume-${mention.name.toLowerCase().replace(/[^a-z0-9]+/g,'-')}`;
+    const existing=state.skills.find(skill=>skill.id===id);
+    const [symbolName,className]=visualByName[mention.name]||['CV','git'];
+    const location=mention.page?`Page ${mention.page}`:`Text line ${mention.line}`;
+    const range=mention.page?`${location} · Line ${mention.line}`:location;
+    const record={id,name:mention.name,symbol:symbolName,className,level:'Resume mention',score:20,area:'Resume claim',source:`Resume · ${parsed.file_name}`,sourceType:'resume',description:'This term appears in the resume. Add a project sample to support it with work evidence.',evidence:`Resume · ${location}`,range,excerpt:mention.excerpt,levelText:'Self-reported',status:'gap'};
+    if(existing)Object.assign(existing,record);else{state.skills.push(record);added++;}
+  }
+  renderOverview();renderSkills();renderRole();renderPassport();
+  state.parsedResume=null;
+  state.pendingResumeFile=null;
+  closeModal();
+  showToast(added?`${added} resume mention${added===1?'':'s'} added. They remain unverified.`:'Those resume mentions are already in the profile.');
 }
 
 function openRolePicker(){
@@ -158,12 +268,15 @@ document.addEventListener('click',event=>{
     $('#share-confirm').classList.add('show');showToast('Demo passport link copied.');return;
   }
   const taskButton=event.target.closest('[data-task]');if(taskButton){const task=learningTasks[Number(taskButton.dataset.task)];task.done=!task.done;renderPlan();showToast(task.done?'Nice work — step marked complete.':'Step moved back to your plan.');return;}
-  if(event.target.id==='scan-work-button'){
-    const repo=$('#repo-url').value.trim();
-    if(repo&&!/^https:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+\/?$/.test(repo)){showToast('Add a public GitHub repository URL to continue.');return;}
-    const file=$('#resume-file').files[0];
-    openModal('Reviewing your sample profile','This preview uses the sample evidence already in Proofolio.',`<div class="scan-state"><div class="scan-spinner"></div><strong>Looking for skills in your work</strong><p>Checking project examples, source context, and role relevance…</p></div>`);
-    state.scanTimer=setTimeout(()=>{closeModal();showToast(file||repo?'Sample scan complete. No files were uploaded.':'Sample profile refreshed.');},1300);return;
+  if(event.target.id==='parse-resume-button'){parseSelectedResume();return;}
+  if(event.target.id==='retry-resume-button'){parseSelectedResume();return;}
+  if(event.target.id==='add-resume-claims-button'){addResumeClaims();return;}
+  if(event.target.id==='clear-resume-button'){
+    state.pendingResumeFile=null;
+    const fileInput=$('#resume-file');if(fileInput)fileInput.value='';
+    const meta=$('#resume-file-meta');if(meta)meta.hidden=true;
+    const prompt=$('#resume-file-prompt');if(prompt)prompt.textContent='Choose a resume to parse';
+    return;
   }
   if(event.target.id==='save-role-button'){
     const checked=$('input[name="role"]:checked');if(checked){state.role=checked.value;state.selectedRole=state.role;closeModal();renderRole();showToast('Role match updated for '+state.role+'.');}return;
@@ -176,6 +289,10 @@ document.addEventListener('click',event=>{
 });
 
 document.addEventListener('input',event=>{if(event.target.id==='skill-search')renderSkills();});
+document.addEventListener('change',event=>{if(event.target.id==='resume-file')setResumeFile(event.target.files?.[0]);});
+document.addEventListener('dragover',event=>{if(event.target.closest('#resume-drop-zone')){event.preventDefault();$('#resume-drop-zone').classList.add('dragging');}});
+document.addEventListener('dragleave',event=>{if(event.target.closest('#resume-drop-zone'))$('#resume-drop-zone').classList.remove('dragging');});
+document.addEventListener('drop',event=>{const zone=event.target.closest('#resume-drop-zone');if(!zone)return;event.preventDefault();zone.classList.remove('dragging');setResumeFile(event.dataTransfer?.files?.[0]);});
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeModal();});
 
 renderOverview();renderSkills();renderRole();renderPlan();

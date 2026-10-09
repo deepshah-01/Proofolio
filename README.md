@@ -1,53 +1,44 @@
 # Proofolio
 
-**Your skills, with proof.** Proofolio is a polished prototype for IM-03, *Skill Passport: Verified Skills from Real Work*, from the iMocha track in CODE APEX 3.0.
+Proofolio is a skill passport prototype for CODE APEX 3.0, iMocha Track problem IM-03. It separates skills supported by submitted work from terms mentioned in a resume, and gives each extracted claim a source location for review.
 
-It turns work samples into an evidence-first skill profile, compares that profile with a target role, and suggests practical next steps. A recruiter can scan the shareable passport and open the evidence behind each supported skill.
+## Run locally
 
-## Run the prototype
-
-This is a dependency-free web prototype. Open `index.html` in a modern browser, or serve this directory locally:
+Use Python 3.10 or later.
 
 ```powershell
-python -m http.server 8000
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python server.py
 ```
 
-Then visit `http://localhost:8000`.
+Open `http://127.0.0.1:5000`. The parser endpoint is served by the same local Flask process; opening `index.html` directly will not enable resume parsing.
 
-## Prototype flow
+## Resume import
 
-1. Start on the overview dashboard and review the sample profile.
-2. Open **My skills** to search, filter, and inspect the evidence for each skill.
-3. Open **Role match** and compare the profile with a software engineering, frontend, or data analyst role.
-4. Open **Learning plan** and mark practical growth tasks complete.
-5. Open **Public view** to see a recruiter-facing passport and preview its share action.
-6. Use **Add work** to preview the repository and resume intake flow.
+The import flow accepts PDF, DOCX, TXT, and Markdown files up to 10 MB. It extracts selectable PDF text, Word document paragraphs, or plain text, then identifies contact details, common resume section headings, and skill terms from a small, explicit vocabulary. Each skill mention includes a page and line for PDF files, or a text line for DOCX, TXT, and Markdown files.
 
-The sample learner and work are synthetic. The add-work interaction is explicitly a front-end preview: it does not upload files, contact GitHub, or perform AI analysis. The sample evidence is illustrative and is not a real person's verified work. The passport also explains that cited evidence does not independently prove authorship or identity.
+The user reviews the extracted items before adding them. They are labelled as resume mentions and remain separate from skills supported by project files. The parser does not assign proficiency levels, verify identity, prove authorship, or use an AI model. Scanned PDFs need OCR and are reported as unsupported.
 
-## Trust principles
+Uploads are parsed in memory by a service bound to `127.0.0.1`; this prototype does not write the uploaded file or extracted text to a database. Imported claims live in browser memory and disappear when the page is reloaded. Do not expose the development server to a public network.
 
-- A skill should be supported by a traceable work sample, such as a repository file and line range.
-- Resume-only claims are visibly separated from repository evidence and do not raise evidence coverage.
-- Role matching shows the requirements and reasons behind each result; it is not an opaque AI score.
-- Missing evidence appears as a gap, never as a verified skill.
-- Learners choose when to share a passport.
+## Other screens
 
-## Suggested build path
+- **Overview:** candidate snapshot, sample evidence, and role readiness.
+- **My skills:** search and filter project evidence and resume mentions.
+- **Role match:** inspect requirement-by-requirement support and gaps.
+- **Learning plan:** track practical sample tasks.
+- **Public view:** preview a recruiter passport. The share action is illustrative and does not create a hosted profile.
 
-The current build is the Stage 1/Stage 2 interface prototype. The next implementation layer can add:
+The learner, projects, code excerpts, role requirements, and learning tasks outside resume import are synthetic prototype data. GitHub repository analysis, hosted sharing, accounts, persistence, and production deployment are not implemented.
 
-- A small API for uploading a resume and selecting a public repository.
-- Resume text extraction and repository file indexing with source anchors.
-- A skill taxonomy and structured evidence records stored with the source revision.
-- An AI extraction step followed by citation and evidence validation.
-- A role requirement library, explainable match calculation, and task generation.
-- Share links with explicit learner consent and revocation.
+## Implementation
 
-Keep API keys on a server, never in the browser or repository. Use public, sample, or synthetic data for the hackathon demo, and credit any libraries, datasets, and model tools added later.
+- `index.html`, `styles.css`, `app.js` — responsive interface and browser-side interactions.
+- `server.py` — local web server and bounded upload endpoint.
+- `resume_parser.py` — format extraction, source locations, and conservative term matching.
+- `requirements.txt` — Flask and pypdf dependencies.
+- `sample_resume.txt` — synthetic resume you can use to try the import flow.
 
-## Project files
-
-- `index.html` — page structure and prototype screens.
-- `styles.css` — responsive design system and layouts.
-- `app.js` — sample data, navigation, role matching, evidence details, and interactions.
+The PDF reader uses pypdf text extraction. Extraction quality depends on the PDF having selectable text; it does not perform OCR. See the [pypdf text extraction guide](https://pypdf.readthedocs.io/en/stable/user/extract-text.html).
