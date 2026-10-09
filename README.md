@@ -51,7 +51,3 @@ Keep API keys on a server, never in the browser or repository. Use public, sampl
 - `index.html` — page structure and prototype screens.
 - `styles.css` — responsive design system and layouts.
 - `app.js` — sample data, navigation, role matching, evidence details, and interactions.
-
-## License
-
-No license has been selected yet. Add one before inviting external contributions or reusing this project outside the team.
