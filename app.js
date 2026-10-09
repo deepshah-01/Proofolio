@@ -53,7 +53,14 @@ const learningTasks = [
   {title:'Document one design choice',sub:'Explain why your API returns a 404 for a missing recipe.',duration:'45 min',type:'REFLECTION',done:false}
 ];
 
-const state = {skills:initialSkills.map(x=>({...x})), page:'overview', filter:'all', role:'Junior Software Engineer', selectedRole:'Junior Software Engineer', pendingResumeFile:null, parsedResume:null, authRole:'student', auth:null};
+const defaultCompany={name:'ByteBanyan Systems',industry:'Software & technology',description:'A sample product engineering team building dependable tools for growing businesses.',website:'https://bytebanyan.example',location:'Pune, India',contactName:'Maya Recruiter',officialEmail:'careers@bytebanyan.example'};
+const defaultProfile={name:'Aarav Shah',headline:'Computer Science student · Pune, India',college:'Vishwakarma Institute of Technology',branch:'Computer Science',graduationYear:'2027',email:'aarav.shah@example.com',phone:'',github:'https://github.com/aaravshah'};
+const defaultOpportunities=[
+  {id:'intern-backend',title:'Backend Engineering Intern',company:'ByteBanyan Systems',type:'internship',description:'Work with a small product team to build and document API features. Interns pair with an engineer and contribute through reviewed changes.',skills:['Python','SQL','API design','Git & GitHub'],branches:['Computer Science','Information Technology'],graduationYear:'2027',qualification:'Currently pursuing a bachelor’s degree in computing.',experience:'0–1 years · Student projects welcome',location:'Pune · Hybrid',compensation:'₹20,000 / month',openings:2,deadline:'2026-12-15'},
+  {id:'fullstack-associate',title:'Associate Software Engineer',company:'ByteBanyan Systems',type:'full-time',description:'Join the platform team to build backend services and clear, maintainable product interfaces.',skills:['Python','JavaScript','React','Git & GitHub'],branches:['Computer Science','Information Technology'],graduationYear:'2027',qualification:'Bachelor’s degree in Computer Science or a related field.',experience:'New graduates · 0–1 years',location:'Pune · On-site',compensation:'₹6–8 LPA',openings:3,deadline:'2027-01-10'},
+  {id:'intern-product-ui',title:'Product UI Intern',company:'CanvasLoop Studio',type:'internship',description:'Help improve a collaboration product through accessible interface components and thoughtful user flows.',skills:['React','JavaScript','CSS','Team communication'],branches:['Computer Science','Information Technology','Design'],graduationYear:'2027',qualification:'Students graduating in 2027 with a portfolio or project work.',experience:'No prior employment required',location:'Remote · India',compensation:'₹15,000 / month',openings:1,deadline:'2026-11-30'}
+];
+const state = {skills:initialSkills.map(x=>({...x})), page:'overview', filter:'all', role:'Junior Software Engineer', selectedRole:'Junior Software Engineer', pendingResumeFile:null, parsedResume:null, authRole:'student', auth:null, profile:{...defaultProfile}, company:{...defaultCompany}, opportunities:defaultOpportunities.map(x=>({...x,skills:[...x.skills],branches:[...x.branches]})), applications:[], opportunityType:'all', selectedOpportunityId:null, selectedCandidateJob:'intern-backend'};
 const $ = (selector,root=document)=>root.querySelector(selector);
 const $$ = (selector,root=document)=>Array.from(root.querySelectorAll(selector));
 const escapeHtml = value => String(value).replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -61,6 +68,9 @@ const symbol = skill => `<span class="skill-symbol ${escapeHtml(skill.className)
 const skillById = id => state.skills.find(skill=>skill.id===id) || state.skills[0];
 
 function renderOverview(){
+  const welcome=$('#page-overview .welcome-row h1');if(welcome)welcome.innerHTML=`Good morning, ${escapeHtml(state.profile.name.split(' ')[0])} <span class="wave">✦</span>`;
+  const previewName=$('.preview-name');if(previewName)previewName.textContent=state.profile.name;
+  const previewRole=$('.preview-role');if(previewRole)previewRole.textContent=state.profile.headline;
   const evidenceCount=state.skills.filter(skill=>skill.sourceType==='github').length;
   $('#nav-skill-count').textContent=state.skills.length;
   $('#stat-skill-count').textContent=String(evidenceCount).padStart(2,'0');
@@ -121,6 +131,11 @@ function renderPlan(){
 }
 
 function renderPassport(){
+  const profile=state.profile;
+  $('.passport-person h2').textContent=profile.name;$('.passport-person>p').textContent=profile.headline;
+  $('.passport-academic').textContent=`${profile.college} · ${profile.branch} · Class of ${profile.graduationYear}`;
+  $('.passport-links span:first-child').textContent=`⌘ ${profile.github.replace(/^https?:\/\//,'')}`;$('.passport-links span:last-child').textContent=`✉ ${profile.email}`;
+  $('.avatar-xl').textContent=profile.name.split(/\s+/).map(part=>part[0]).slice(0,2).join('').toUpperCase();
   $('#passport-skill-list').innerHTML=state.skills.filter(x=>x.sourceType!=='resume').slice(0,6).map(skill=>`<div class="passport-skill" data-skill="${skill.id}">${symbol(skill)}<span><strong>${escapeHtml(skill.name)}</strong><small>${escapeHtml(skill.source)} · ${escapeHtml(skill.range)}</small></span><span class="arrow">↗</span></div>`).join('');
   const resumeClaims=state.skills.filter(skill=>skill.sourceType==='resume');
   $('#passport-claims-wrap').hidden=resumeClaims.length===0;
@@ -130,15 +145,17 @@ function renderPassport(){
 
 function showPage(name){
   if(!$('#page-'+name))return;
-  if(name==='candidates'&&state.auth?.role!=='recruiter')return;
-  if(['overview','skills','roles','learning'].includes(name)&&state.auth?.role==='recruiter')return;
+  const recruiterPages=['candidates','manage-jobs','company'];
+  const studentPages=['overview','skills','roles','learning','opportunities','applications'];
+  if(recruiterPages.includes(name)&&state.auth?.role!=='recruiter')return;
+  if(studentPages.includes(name)&&state.auth?.role!=='student')return;
   state.page=name;
   $$('.page-view').forEach(page=>page.classList.toggle('active',page.id==='page-'+name));
   $$('.nav-link').forEach(link=>link.classList.toggle('active',link.dataset.page===name));
-  const title={overview:'Overview',skills:'My skills',roles:'Role match',learning:'Learning plan',passport:'Public view',candidates:'Candidate pool'}[name]||'Overview';
+  const title={overview:'Overview',skills:'My skills',roles:'Role match',learning:'Learning plan',passport:'Public view',candidates:'Candidate matching',opportunities:'Opportunities',applications:'Applications',company:'Company profile','manage-jobs':'Manage opportunities'}[name]||'Overview';
   $('#breadcrumb-page').textContent=title;
   $('#sidebar').classList.remove('open');
-  if(name==='skills')renderSkills(); if(name==='roles')renderRole(); if(name==='learning')renderPlan(); if(name==='passport')renderPassport(); if(name==='candidates')renderCandidates();
+  if(name==='skills')renderSkills(); if(name==='roles')renderRole(); if(name==='learning')renderPlan(); if(name==='passport')renderPassport(); if(name==='candidates')renderCandidates(); if(name==='opportunities')renderOpportunities(); if(name==='applications')renderApplications(); if(name==='company')renderCompany(); if(name==='manage-jobs')renderManagedOpportunities();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -179,11 +196,72 @@ async function signOut(){
   try{await fetch('/api/auth/logout',{method:'POST'});}catch(_error){}
   state.authRole='student';showLogin();
 }
-const sampleCandidates=[{name:'Aarav Shah',initials:'AS',headline:'Computer Science student · Pune, India',role:'Software Engineer',score:74,skills:'Python, React, SQL, API design',evidence:'6 skills linked to 3 project samples',summary:'Strong foundation in backend and frontend work, with source-linked project evidence.'}];
+function persistDemoData(){
+  try{localStorage.setItem('proofolio-demo-state',JSON.stringify({company:state.company,opportunities:state.opportunities,applications:state.applications,profile:state.profile}));}catch(_error){/* The prototype remains usable if browser storage is unavailable. */}
+}
+function restoreDemoData(){
+  try{const saved=JSON.parse(localStorage.getItem('proofolio-demo-state')||'null');if(!saved)return;
+    if(saved.company&&typeof saved.company==='object')state.company={...defaultCompany,...saved.company};
+    if(Array.isArray(saved.opportunities)&&saved.opportunities.length)state.opportunities=saved.opportunities;
+    if(Array.isArray(saved.applications))state.applications=saved.applications;
+    if(saved.profile&&typeof saved.profile==='object')state.profile={...defaultProfile,...saved.profile};
+  }catch(_error){/* Ignore malformed or unavailable browser storage and keep sample defaults. */}
+}
+function profileCandidate(){return {name:state.profile.name,initials:state.profile.name.split(/\s+/).map(part=>part[0]).slice(0,2).join('').toUpperCase(),headline:state.profile.headline,branch:state.profile.branch,graduationYear:state.profile.graduationYear};}
+function matchForOpportunity(candidate,job){
+  const eligible=(!job.branches?.length||job.branches.includes(candidate.branch))&&(!job.graduationYear||String(job.graduationYear)===String(candidate.graduationYear));
+  const detail=job.skills.map(name=>{const found=state.skills.find(skill=>skill.name.toLowerCase()===name.toLowerCase()&&skill.sourceType!=='resume');return {name,skill:found,status:found?.status==='supported'?'supported':found?'partial':'gap'};});
+  const points=detail.reduce((sum,item)=>sum+(item.status==='supported'?1:item.status==='partial'?0.5:0),0);
+  return {eligible,score:Math.round(points/Math.max(detail.length,1)*100),detail,matched:detail.filter(x=>x.status==='supported'),partial:detail.filter(x=>x.status==='partial'),missing:detail.filter(x=>x.status==='gap')};
+}
+function statusClass(value){return String(value||'Submitted').toLowerCase().replace(/\s+/g,'-');}
+function opportunityIsOpen(job){return !job.deadline||new Date(`${job.deadline}T23:59:59`)>=new Date();}
+const applicationStages=['Submitted','Under Review','Shortlisted','Interview','Selected','Rejected'];
 function renderCandidates(){
-  const query=($('#candidate-search')?.value||'').trim().toLowerCase(),role=$('#candidate-role-filter')?.value||'all';
-  const items=sampleCandidates.filter(candidate=>(role==='all'||candidate.role===role)&&(!query||`${candidate.name} ${candidate.headline} ${candidate.role} ${candidate.skills}`.toLowerCase().includes(query)));
-  $('#candidate-list').innerHTML=items.length?items.map(candidate=>`<article class="candidate-card"><div class="candidate-card-top"><span class="avatar candidate-avatar">${candidate.initials}</span><div class="candidate-identity"><h2>${candidate.name}</h2><p>${candidate.headline}</p></div><span class="candidate-score"><strong>${candidate.score}%</strong><small>evidence match</small></span></div><div class="candidate-role-line"><span>Target role</span><strong>${candidate.role}</strong></div><p class="candidate-summary">${candidate.summary}</p><div class="candidate-skills">${candidate.skills.split(', ').map(skill=>`<span>${skill}</span>`).join('')}</div><div class="candidate-card-foot"><span>✓ ${candidate.evidence}</span><button class="button button-primary" data-page="passport">Review passport <span>→</span></button></div></article>`).join(''):'<div class="empty-state"><strong>No candidates match</strong>Change the search or role filter.</div>';
+  const query=($('#candidate-search')?.value||'').trim().toLowerCase();
+  const job=state.opportunities.find(item=>item.id===state.selectedCandidateJob)||state.opportunities.find(item=>item.id===$('#candidate-job-filter')?.value)||state.opportunities[0];state.selectedCandidateJob=job?.id;
+  const selector=$('#candidate-job-filter');if(selector&&job)selector.innerHTML=state.opportunities.map(item=>`<option value="${escapeHtml(item.id)}" ${item.id===job.id?'selected':''}>${escapeHtml(item.title)} · ${escapeHtml(item.company)}</option>`).join('');
+  const candidate=profileCandidate();const needle=`${candidate.name} ${candidate.headline} ${candidate.branch} ${state.skills.map(x=>x.name).join(' ')}`.toLowerCase();
+  if(!job){$('#candidate-list').innerHTML='<div class="empty-state"><strong>No active opportunities</strong>Post an opportunity to see candidate matches.</div>';return;}
+  if(query&&!needle.includes(query)){$('#candidate-list').innerHTML='<div class="empty-state"><strong>No candidates match</strong>Change the search or selected opportunity.</div>';return;}
+  const result=matchForOpportunity(candidate,job);const application=state.applications.find(item=>item.opportunityId===job.id);
+  const evidenceList=result.detail.map(item=>`<div class="match-requirement ${item.status}"><span class="match-status-icon">${item.status==='supported'?'✓':item.status==='partial'?'◷':'+'}</span><span><strong>${escapeHtml(item.name)}</strong><small>${item.skill?`${escapeHtml(item.skill.source)} · ${escapeHtml(item.skill.range)}`:'No submitted project evidence found'}</small></span><em>${item.status==='supported'?'Supported':item.status==='partial'?'Partial':'Gap'}</em></div>`).join('');
+  const options=applicationStages.map(stage=>`<option value="${stage}" ${application?.status===stage?'selected':''}>${stage}</option>`).join('');
+  $('#candidate-list').innerHTML=`<article class="candidate-card match-candidate"><div class="candidate-card-top"><span class="avatar candidate-avatar">${escapeHtml(candidate.initials)}</span><div class="candidate-identity"><h2>${escapeHtml(candidate.name)}</h2><p>${escapeHtml(candidate.headline)} · Class of ${escapeHtml(candidate.graduationYear)}</p></div><span class="candidate-score ${result.eligible?'':'ineligible'}"><strong>${result.eligible?`${result.score}%`:'Not eligible'}</strong><small>${result.eligible?'evidence overlap':'eligibility rules'}</small></span></div><div class="candidate-role-line"><span>Opportunity</span><strong>${escapeHtml(job.title)} · ${escapeHtml(job.company)}</strong></div><div class="eligibility-row ${result.eligible?'eligible':'ineligible'}"><span>${result.eligible?'✓':'!'}</span>${result.eligible?`Meets the listed branch and graduation-year rules (${escapeHtml(candidate.branch)}, ${escapeHtml(candidate.graduationYear)}).`:`Does not meet this opportunity’s listed branch or graduation-year criteria.`}</div><div class="match-breakdown"><div class="match-breakdown-head"><strong>Requirement evidence</strong><span>${result.matched.length} supported · ${result.partial.length} partial · ${result.missing.length} gaps</span></div>${evidenceList}</div><div class="candidate-summary">${result.eligible?'Score is calculated from requirement coverage: supported work = full credit, partial work = half credit, resume-only mentions = no evidence credit.':'Eligibility is checked before the match score is used for review.'}</div><div class="candidate-card-foot"><span>${application?`Application status · ${escapeHtml(application.status)}`:'Synthetic student profile · demo data'}</span><div class="candidate-actions"><button class="button button-outline" data-page="passport">Review passport</button>${application?`<label class="status-select-label">Update status<select class="application-status-select" data-application-id="${escapeHtml(application.id)}">${options}</select></label>`:''}</div></div></article>`;
+}
+function opportunityMatch(job){return matchForOpportunity(profileCandidate(),job);}
+function renderOpportunities(){
+  const jobs=state.opportunities.filter(job=>state.opportunityType==='all'||job.type===state.opportunityType)
+    .sort((a,b)=>{const left=opportunityMatch(a),right=opportunityMatch(b);return Number(right.eligible)-Number(left.eligible)||right.score-left.score;});
+  $('#opportunity-list').innerHTML=jobs.length?jobs.map(job=>{
+    const match=opportunityMatch(job),applied=state.applications.some(item=>item.opportunityId===job.id);
+    const open=opportunityIsOpen(job);
+    return `<article class="opportunity-card"><div class="opportunity-card-head"><span class="opportunity-icon">${job.type==='internship'?'✳':'↗'}</span><span class="opportunity-type">${job.type==='internship'?'INTERNSHIP':'FULL-TIME'}</span><span class="candidate-score ${match.eligible?'':'ineligible'}"><strong>${match.eligible?`${match.score}%`:'Not eligible'}</strong><small>${match.eligible?'evidence match':'eligibility'}</small></span></div><span class="opportunity-company">${escapeHtml(job.company)} · ${escapeHtml(job.location)}</span><h2>${escapeHtml(job.title)}</h2><p>${escapeHtml(job.description)}</p><div class="opportunity-skills">${job.skills.map(skill=>`<span>${escapeHtml(skill)}</span>`).join('')}</div><div class="opportunity-meta"><span>◷ ${escapeHtml(job.compensation||'Compensation not listed')}</span><span>${escapeHtml(job.experience||'Experience not specified')}</span><span>Deadline · ${escapeHtml(job.deadline)}</span></div><div class="opportunity-match-reason">${!open?'Applications closed':!match.eligible?'Eligibility rules do not match your current profile.':`${match.matched.length} supported · ${match.partial.length} partial · ${match.missing.length} evidence gaps`}</div><div class="opportunity-actions"><button class="button button-outline" data-opportunity-details="${escapeHtml(job.id)}">View details</button>${applied?'<span class="applied-badge">✓ Applied</span>':`<button class="button button-primary" data-apply-opportunity="${escapeHtml(job.id)}" ${!match.eligible||!open?'disabled':''}>Apply now <span>→</span></button>`}</div></article>`;
+  }).join(''):'<div class="empty-state"><strong>No opportunities in this list</strong>Try a different opportunity type.</div>';
+}
+function renderApplications(){
+  $('#application-count').textContent=state.applications.length;
+  $('#application-list').innerHTML=state.applications.length?state.applications.map(item=>{const job=state.opportunities.find(role=>role.id===item.opportunityId);return `<article class="application-card"><div><span class="opportunity-type">${job?.type==='internship'?'INTERNSHIP':'FULL-TIME'}</span><h2>${escapeHtml(item.title||job?.title||'Opportunity')}</h2><p>${escapeHtml(item.company||job?.company||'Company')} · Applied ${escapeHtml(item.appliedAt||'recently')}</p></div><span class="application-status ${statusClass(item.status)}">${escapeHtml(item.status)}</span><button class="button button-outline" data-opportunity-details="${escapeHtml(item.opportunityId)}">View role</button></article>`;}).join(''):'<div class="empty-state"><strong>No applications yet</strong>Explore an opportunity and apply when its requirements look right for you.</div>';
+}
+function renderCompany(){const company=state.company;$('#company-profile-card').innerHTML=`<div class="company-mark">${escapeHtml(company.name.slice(0,1).toUpperCase())}</div><div class="company-profile-content"><span class="verified-badge">COMPANY PROFILE · DEMO ONLY</span><h2>${escapeHtml(company.name)}</h2><p>${escapeHtml(company.industry)} · ${escapeHtml(company.location)}</p><p class="company-description">${escapeHtml(company.description)}</p><div class="company-profile-details"><span>⌕ ${escapeHtml(company.website)}</span><span>✉ ${escapeHtml(company.officialEmail)}</span><span>Contact · ${escapeHtml(company.contactName)}</span></div></div>`;}
+function renderManagedOpportunities(){
+  $('#managed-opportunity-list').innerHTML=state.opportunities.map(job=>{const apps=state.applications.filter(item=>item.opportunityId===job.id);return `<article class="managed-opportunity-card"><div><span class="opportunity-type">${job.type==='internship'?'INTERNSHIP':'FULL-TIME'} · ${job.openings} OPENING${job.openings===1?'':'S'}</span><h2>${escapeHtml(job.title)}</h2><p>${escapeHtml(job.company)} · ${escapeHtml(job.location)} · ${escapeHtml(job.experience||'Experience not specified')} · Closes ${escapeHtml(job.deadline)}</p></div><div class="managed-opportunity-count"><strong>${apps.length}</strong><span>applications</span></div><div class="managed-opportunity-actions"><button class="button button-outline" data-manage-job="${escapeHtml(job.id)}">Review matches</button><button class="button button-outline" data-opportunity-details="${escapeHtml(job.id)}">Preview</button></div></article>`;}).join('');
+}
+function openOpportunityDetails(id){
+  const job=state.opportunities.find(item=>item.id===id);if(!job)return;
+  state.selectedOpportunityId=id;
+  const match=opportunityMatch(job),applied=state.applications.some(item=>item.opportunityId===id),open=opportunityIsOpen(job);
+  const skillReasons=match.detail.map(item=>`<div class="match-requirement ${item.status}"><span class="match-status-icon">${item.status==='supported'?'✓':item.status==='partial'?'◷':'+'}</span><span><strong>${escapeHtml(item.name)}</strong><small>${item.skill?`${escapeHtml(item.skill.source)} · ${escapeHtml(item.skill.range)}`:'No project evidence in the current sample'}</small></span><em>${item.status==='supported'?'Supported':item.status==='partial'?'Partial':'Gap'}</em></div>`).join('');
+  const company=job.company===state.company.name
+    ? `<p>${escapeHtml(state.company.industry)} · ${escapeHtml(state.company.location)} · ${escapeHtml(state.company.website)}</p><p>${escapeHtml(state.company.description)}</p>`
+    : '<p>Company details are not available for this other sample listing.</p>';
+  openModal(escapeHtml(job.title),`${escapeHtml(job.company)} · ${job.type==='internship'?'Internship':'Full-time placement'}`,`<div class="opportunity-detail-body"><p class="opportunity-detail-description">${escapeHtml(job.description)}</p><div class="opportunity-detail-section company-detail"><h3>Company details</h3>${company}</div><div class="opportunity-detail-facts"><div><span>Location</span><strong>${escapeHtml(job.location)}</strong></div><div><span>Compensation</span><strong>${escapeHtml(job.compensation||'Not listed')}</strong></div><div><span>Experience</span><strong>${escapeHtml(job.experience||'Not specified')}</strong></div><div><span>Deadline</span><strong>${escapeHtml(job.deadline)}${open?'':' · Closed'}</strong></div><div><span>Openings</span><strong>${escapeHtml(job.openings)}</strong></div><div><span>Eligible branches</span><strong>${escapeHtml(job.branches.join(', '))}</strong></div><div><span>Graduation year</span><strong>${escapeHtml(job.graduationYear||'Not specified')}</strong></div></div><div class="opportunity-detail-section"><h3>Qualifications</h3><p>${escapeHtml(job.qualification)}</p></div><div class="opportunity-detail-section"><h3>Required skills</h3><div class="opportunity-skills">${job.skills.map(skill=>`<span>${escapeHtml(skill)}</span>`).join('')}</div></div><div class="opportunity-detail-section"><h3>Your match · ${match.eligible?`${match.score}%`:'Not eligible'}</h3><p>${match.eligible?`${match.matched.length} supported, ${match.partial.length} partial, ${match.missing.length} gaps. Resume-only mentions do not count as work evidence.`:'Your current branch or graduation year does not meet the listed eligibility rules.'}</p><div class="match-breakdown">${skillReasons}</div></div><div class="parsed-disclaimer">Sample opportunity for demonstration only. Match score is deterministic guidance; it is not an AI hiring decision.</div></div>`,`<div class="modal-actions"><button class="button button-outline" data-close>Close</button>${applied?'<span class="applied-badge">✓ Application submitted</span>':`<button class="button button-primary" data-confirm-apply="${escapeHtml(job.id)}" ${!match.eligible||!open?'disabled':''}>Apply now</button>`}</div>`);
+}
+function submitApplication(id){
+  const job=state.opportunities.find(item=>item.id===id);if(!job||state.applications.some(item=>item.opportunityId===id))return;
+  const match=opportunityMatch(job);if(!opportunityIsOpen(job)){showToast('The application deadline has passed.');return;}if(!match.eligible){showToast('Your profile does not meet the listed eligibility rules.');return;}
+  const today=new Intl.DateTimeFormat('en-IN',{day:'numeric',month:'short',year:'numeric'}).format(new Date());
+  state.applications.push({id:`application-${Date.now()}`,opportunityId:id,title:job.title,company:job.company,status:'Submitted',appliedAt:today,candidate:{...profileCandidate(),email:state.profile.email,phone:state.profile.phone,college:state.profile.college}});persistDemoData();closeModal();renderApplications();renderOpportunities();renderManagedOpportunities();renderCandidates();showToast('Application submitted in this local demo.');
 }
 
 function openModal(title,subtitle,body,actions=''){
@@ -252,18 +330,24 @@ async function parseSelectedResume(){
 
 function openResumeReview(result){
   const contact=result.contact||{};
-  const contactRows=[['Possible name · review',contact.name],['Email',contact.email],['Phone',contact.phone]].filter(([,value])=>value);
   const fileDetails=result.page_count?`${result.file_type} · ${result.page_count} page${result.page_count===1?'':'s'}`:`${result.file_type} · text-line references`;
-  const contactCards=contactRows.length?contactRows.map(([label,value])=>`<div class="parse-summary-card"><span>${label}</span><strong title="${escapeHtml(value)}">${escapeHtml(value)}</strong></div>`).join(''):`<div class="parse-summary-card"><span>Contact details</span><strong>Review manually</strong></div>`;
-  const skillCards=result.skills.length?result.skills.map(skill=>{const location=skill.page?`Page ${skill.page} · line ${skill.line}`:`Text line ${skill.line}`;return `<article class="parsed-skill"><div class="parsed-skill-top"><strong>${escapeHtml(skill.name)}</strong><span class="parsed-skill-source">Resume mention</span></div><p>${escapeHtml(skill.excerpt)}</p><span class="parsed-citation">${location}</span></article>`;}).join(''):`<div class="parsed-empty">No supported skill terms were found. You can still review the detected resume sections below.</div>`;
+  const contactCards=`<div class="resume-contact-edit"><label class="form-label" for="resume-contact-name">Name · edit if needed</label><input class="form-input" id="resume-contact-name" value="${escapeHtml(contact.name||state.profile.name)}" /><label class="form-label" for="resume-contact-email">Email · edit if needed</label><input class="form-input" id="resume-contact-email" type="email" value="${escapeHtml(contact.email||state.profile.email)}" /><label class="form-label" for="resume-contact-phone">Phone · edit if needed</label><input class="form-input" id="resume-contact-phone" type="tel" value="${escapeHtml(contact.phone||'')}" /><small>Extracted text can be wrong. Confirm these details before saving.</small></div>`;
+  const skillCards=result.skills.length?result.skills.map((skill,index)=>{const location=skill.page?`Page ${skill.page} · line ${skill.line}`:`Text line ${skill.line}`;return `<article class="parsed-skill"><div class="parsed-skill-top"><label class="parsed-skill-choice"><input type="checkbox" class="resume-skill-check" data-skill-index="${index}" checked /><strong>${escapeHtml(skill.name)}</strong></label><span class="parsed-skill-source">Resume mention</span></div><p>${escapeHtml(skill.excerpt)}</p><span class="parsed-citation">${location}</span></article>`;}).join(''):`<div class="parsed-empty">No supported skill terms were found. You can still review the detected resume sections below.</div>`;
   const sections=result.sections.length?result.sections.map(section=>`<article class="parsed-section-card"><header><strong>${escapeHtml(section.name)}</strong><span>${section.page?`Page ${section.page}`:`Line ${section.line}`}</span></header><p>${escapeHtml(section.excerpt||'Section heading found; no following text was available.')}</p></article>`).join(''):`<div class="parsed-empty">No standard section headings detected. Review the text and skill mentions manually.</div>`;
-  openModal('Resume review',`${escapeHtml(result.file_name)} · ${fileDetails}`,`<div class="parse-result"><div class="parse-summary">${contactCards}<div class="parse-summary-card"><span>Skill terms</span><strong>${result.skills.length} found</strong></div><div class="parse-summary-card"><span>Text extracted</span><strong>${result.character_count.toLocaleString()} characters</strong></div></div><div class="parse-section-title">Skill mentions <small>Each item points to source text</small></div><div class="parsed-skill-list">${skillCards}</div><div class="parse-section-title">Sections detected <small>Headings, not quality ratings</small></div><div class="parsed-sections">${sections}</div><div class="parsed-disclaimer">These terms were found in the resume. They are self-reported and stay separate from skills supported by project work.</div></div>`,'<div class="modal-actions"><button class="button button-outline" data-close>Discard</button><button class="button button-primary" id="add-resume-claims-button">Add resume mentions</button></div>');
+  openModal('Resume review',`${escapeHtml(result.file_name)} · ${fileDetails}`,`<div class="parse-result"><div class="parse-summary"><div class="parse-summary-card"><span>Skill terms</span><strong>${result.skills.length} found</strong></div><div class="parse-summary-card"><span>Text extracted</span><strong>${result.character_count.toLocaleString()} characters</strong></div></div><div class="parse-section-title">Contact details <small>Correct before saving</small></div>${contactCards}<div class="parse-section-title">Skill mentions <small>Uncheck any incorrect match</small></div><div class="parsed-skill-list">${skillCards}</div><div class="parse-section-title">Sections detected <small>Headings, not quality ratings</small></div><div class="parsed-sections">${sections}</div><div class="parsed-disclaimer">Resume terms stay self-reported and separate from project evidence. Resume contents are not stored by the parser.</div></div>`,'<div class="modal-actions"><button class="button button-outline" data-close>Discard</button><button class="button button-primary" id="add-resume-claims-button">Save reviewed details</button></div>');
 }
 
 function addResumeClaims(){
   const parsed=state.parsedResume;
   if(!parsed)return;
+  state.profile.name=$('#resume-contact-name').value.trim()||state.profile.name;
+  state.profile.email=$('#resume-contact-email').value.trim()||state.profile.email;
+  state.profile.phone=$('#resume-contact-phone').value.trim()||state.profile.phone||'';
+  $('.profile-name strong').textContent=state.profile.name;const profileInitials=state.profile.name.split(/\s+/).map(part=>part[0]).slice(0,2).join('').toUpperCase();$('.avatar-small').textContent=profileInitials;$('.top-avatar').textContent=profileInitials;
+  parsed.skills=parsed.skills.filter((_skill,index)=>$(`.resume-skill-check[data-skill-index="${index}"]`)?.checked);
+  persistDemoData();
   if(parsed.skills.length===0){
+    renderOverview();renderPassport();
     closeModal();
     showToast('Resume reviewed. No supported skill terms were found.');
     return;
@@ -292,7 +376,27 @@ function openRolePicker(){
 }
 
 function openEditProfile(){
-  openModal('Your profile details','These details appear in your shareable passport.',`<div class="modal-body"><label class="form-label" for="profile-name-input">Name</label><input class="form-input" id="profile-name-input" value="Aarav Shah" /><label class="form-label" for="profile-headline-input">Headline</label><input class="form-input" id="profile-headline-input" value="Computer Science student · Pune, India" /><label class="form-label" for="profile-github-input">GitHub profile</label><input class="form-input" id="profile-github-input" value="https://github.com/aaravshah" /><div class="modal-tip">Your passport is private in this prototype. Sharing is only a preview action.</div></div>`,'<div class="modal-actions"><button class="button button-outline" data-close>Cancel</button><button class="button button-primary" id="save-profile-button">Save changes</button></div>');
+  const p=state.profile;
+  openModal('Your profile details','Update the sample profile shared with recruiters.',`<div class="modal-body"><label class="form-label" for="profile-name-input">Name</label><input class="form-input" id="profile-name-input" value="${escapeHtml(p.name)}" /><label class="form-label" for="profile-headline-input">Headline and location</label><input class="form-input" id="profile-headline-input" value="${escapeHtml(p.headline)}" /><label class="form-label" for="profile-college-input">College / university</label><input class="form-input" id="profile-college-input" value="${escapeHtml(p.college)}" /><label class="form-label" for="profile-branch-input">Course / branch</label><input class="form-input" id="profile-branch-input" value="${escapeHtml(p.branch)}" /><label class="form-label" for="profile-year-input">Graduation year</label><input class="form-input" id="profile-year-input" type="number" min="2020" max="2040" value="${escapeHtml(p.graduationYear)}" /><label class="form-label" for="profile-email-input">Email</label><input class="form-input" id="profile-email-input" type="email" value="${escapeHtml(p.email)}" /><label class="form-label" for="profile-phone-input">Phone</label><input class="form-input" id="profile-phone-input" type="tel" value="${escapeHtml(p.phone||'')}" /><label class="form-label" for="profile-github-input">GitHub profile</label><input class="form-input" id="profile-github-input" value="${escapeHtml(p.github)}" /><div class="modal-tip">Sample profile fields are saved in this browser for the demo. They are not sent to an employer unless you apply.</div></div>`,'<div class="modal-actions"><button class="button button-outline" data-close>Cancel</button><button class="button button-primary" id="save-profile-button">Save changes</button></div>');
+}
+
+function openCompanyEditor(){
+  const c=state.company;const fields=[['name','Company name'],['industry','Industry'],['description','Company description'],['website','Official website'],['location','Location'],['contactName','Contact person'],['officialEmail','Official email']];
+  const controls=fields.map(([key,label])=>`<label class="form-label" for="company-${key}">${label}</label>${key==='description'?`<textarea class="form-input form-textarea" id="company-${key}" rows="3">${escapeHtml(c[key])}</textarea>`:`<input class="form-input" id="company-${key}" ${key==='officialEmail'?'type="email"':''} value="${escapeHtml(c[key])}" />`}`).join('');
+  openModal('Company profile','These sample details appear with your demo opportunities.',`<div class="modal-body">${controls}<div class="modal-tip">Company identity and email are not verified in this prototype.</div></div>`,'<div class="modal-actions"><button class="button button-outline" data-close>Cancel</button><button class="button button-primary" id="save-company-button">Save profile</button></div>');
+}
+function openOpportunityComposer(){
+  openModal('Post an opportunity','Create a sample listing with requirements students can review.',`<form class="modal-body" id="opportunity-form"><label class="form-label" for="job-title">Opportunity title</label><input class="form-input" id="job-title" required maxlength="90" placeholder="e.g. Software Engineering Intern" /><div class="form-two-col"><div><label class="form-label" for="job-type">Type</label><select class="form-input" id="job-type"><option value="internship">Internship</option><option value="full-time">Full-time placement</option></select></div><div><label class="form-label" for="job-openings">Openings</label><input class="form-input" id="job-openings" type="number" min="1" max="100" value="1" required /></div></div><label class="form-label" for="job-description">Description</label><textarea class="form-input form-textarea" id="job-description" rows="3" required maxlength="700"></textarea><label class="form-label" for="job-skills">Required skills <small>comma-separated</small></label><input class="form-input" id="job-skills" required placeholder="Python, SQL, React" /><div class="form-two-col"><div><label class="form-label" for="job-branches">Eligible branches <small>comma-separated</small></label><input class="form-input" id="job-branches" value="Computer Science, Information Technology" required /></div><div><label class="form-label" for="job-year">Graduation year</label><input class="form-input" id="job-year" type="number" min="2020" max="2040" value="2027" required /></div></div><label class="form-label" for="job-qualification">Qualification criteria</label><input class="form-input" id="job-qualification" required placeholder="Degree / academic criteria" /><label class="form-label" for="job-experience">Experience criteria</label><input class="form-input" id="job-experience" required placeholder="e.g. 0–1 years; student projects welcome" /><div class="form-two-col"><div><label class="form-label" for="job-location">Location / remote</label><input class="form-input" id="job-location" required placeholder="Pune · Hybrid" /></div><div><label class="form-label" for="job-compensation">Stipend / salary</label><input class="form-input" id="job-compensation" placeholder="Optional" /></div></div><label class="form-label" for="job-deadline">Application deadline</label><input class="form-input" id="job-deadline" type="date" required /><p class="form-help">This listing is local demo data. Posting does not publish a real vacancy.</p><button type="submit" hidden></button></form>`,'<div class="modal-actions"><button class="button button-outline" data-close>Cancel</button><button class="button button-primary" id="save-opportunity-button">Publish demo opportunity</button></div>');
+}
+function confirmApplication(id){
+  const job=state.opportunities.find(item=>item.id===id);if(!job)return;
+  openModal('Confirm your application',`Apply to ${escapeHtml(job.title)} at ${escapeHtml(job.company)}?`,'<div class="modal-body"><p class="opportunity-detail-description">Your application in this local demo includes your name, contact email, education summary, skill passport and cited work evidence. Your uploaded resume file is not attached or stored.</p><div class="privacy-consent"><span>◈</span><p>This shares the sample profile with the sample company workspace in this browser, so you can view the recruiter flow. Track status changes from Applications.</p></div><label class="consent-check"><input id="application-consent" type="checkbox" /> I understand this is a sample application and consent to share the profile details above.</label></div>','<div class="modal-actions"><button class="button button-outline" data-close>Cancel</button><button class="button button-primary" id="final-submit-application" data-opportunity-id="'+escapeHtml(id)+'" disabled>Submit application</button></div>');
+}
+function createOpportunityFromForm(){
+  const form=$('#opportunity-form');if(!form?.reportValidity())return;
+  const value=id=>$('#'+id).value.trim();const name=value('job-title');
+  const job={id:`custom-${Date.now()}`,title:name,company:state.company.name,type:value('job-type'),description:value('job-description'),skills:value('job-skills').split(',').map(x=>x.trim()).filter(Boolean),branches:value('job-branches').split(',').map(x=>x.trim()).filter(Boolean),graduationYear:value('job-year'),qualification:value('job-qualification'),experience:value('job-experience'),location:value('job-location'),compensation:value('job-compensation')||'Not listed',openings:Number(value('job-openings')),deadline:value('job-deadline')};
+  state.opportunities.unshift(job);state.selectedCandidateJob=job.id;const selector=$('#candidate-job-filter');if(selector)selector.value=job.id;persistDemoData();closeModal();renderManagedOpportunities();renderCandidates();renderOpportunities();showToast('Demo opportunity published.');
 }
 
 document.addEventListener('click',event=>{
@@ -301,6 +405,12 @@ document.addEventListener('click',event=>{
   if(event.target.id==='signout-button'){signOut();return;}
   const pageLink=event.target.closest('[data-page]'); if(pageLink){showPage(pageLink.dataset.page);closeModal();return;}
   const nav=event.target.closest('.nav-link'); if(nav){showPage(nav.dataset.page);return;}
+  const jobPreview=event.target.closest('[data-opportunity-details]');if(jobPreview){openOpportunityDetails(jobPreview.dataset.opportunityDetails);return;}
+  const applyJob=event.target.closest('[data-apply-opportunity]');if(applyJob){openOpportunityDetails(applyJob.dataset.applyOpportunity);return;}
+  const confirmApply=event.target.closest('[data-confirm-apply]');if(confirmApply){confirmApplication(confirmApply.dataset.confirmApply);return;}
+  if(event.target.id==='final-submit-application'){submitApplication(event.target.dataset.opportunityId);return;}
+  const matchJob=event.target.closest('[data-manage-job]');if(matchJob){state.selectedCandidateJob=matchJob.dataset.manageJob;const selector=$('#candidate-job-filter');if(selector)selector.value=state.selectedCandidateJob;showPage('candidates');return;}
+  const opportunityTab=event.target.closest('[data-opportunity-type]');if(opportunityTab){state.opportunityType=opportunityTab.dataset.opportunityType;$$('[data-opportunity-type]').forEach(tab=>tab.classList.toggle('active',tab===opportunityTab));renderOpportunities();return;}
   const skillTarget=event.target.closest('[data-skill]'); if(skillTarget){event.preventDefault();showEvidence(skillById(skillTarget.dataset.skill));return;}
   const close=event.target.closest('[data-close]'); if(close){closeModal();return;}
   if(event.target.id==='modal-backdrop'){closeModal();return;}
@@ -308,6 +418,9 @@ document.addEventListener('click',event=>{
   if(event.target.id==='add-work-button'||event.target.id==='skills-add-work'){openAddWork();return;}
   if(event.target.id==='edit-role-button'){openRolePicker();return;}
   if(event.target.id==='edit-profile-button'){openEditProfile();return;}
+  if(event.target.id==='company-edit-button'){openCompanyEditor();return;}
+  if(event.target.id==='post-opportunity-button'){openOpportunityComposer();return;}
+  if(event.target.id==='save-opportunity-button'){createOpportunityFromForm();return;}
   if(event.target.id==='mobile-menu'){$('#sidebar').classList.toggle('open');return;}
   if(event.target.id==='notification-button'){showToast('You’re all caught up.');return;}
   if(event.target.id==='profile-button'){showToast(state.auth?.role==='recruiter'?'Recruiter demo workspace':'Student demo workspace');return;}
@@ -331,21 +444,32 @@ document.addEventListener('click',event=>{
     const checked=$('input[name="role"]:checked');if(checked){state.role=checked.value;state.selectedRole=state.role;closeModal();renderRole();showToast('Role match updated for '+state.role+'.');}return;
   }
   if(event.target.id==='save-profile-button'){
-    const name=$('#profile-name-input').value.trim()||'Aarav Shah';
-    $$('.passport-person h2').forEach(node=>node.textContent=name);
-    closeModal();showToast('Profile details saved for this preview.');return;
+    state.profile={...state.profile,name:$('#profile-name-input').value.trim()||defaultProfile.name,headline:$('#profile-headline-input').value.trim(),college:$('#profile-college-input').value.trim(),branch:$('#profile-branch-input').value.trim(),graduationYear:$('#profile-year-input').value,email:$('#profile-email-input').value.trim(),phone:$('#profile-phone-input').value.trim(),github:$('#profile-github-input').value.trim()};
+    persistDemoData();renderOverview();renderPassport();$('.profile-name strong').textContent=state.profile.name;const initials=state.profile.name.split(/\s+/).map(part=>part[0]).slice(0,2).join('').toUpperCase();$('.avatar-small').textContent=initials;$('.top-avatar').textContent=initials;closeModal();showToast('Sample profile updated.');return;
+  }
+  if(event.target.id==='save-company-button'){
+    const previousName=state.company.name;
+    const updated={};for(const key of Object.keys(defaultCompany))updated[key]=$('#company-'+key).value.trim();
+    if(!updated.name||!updated.officialEmail){showToast('Add a company name and contact email first.');return;}
+    state.company=updated;
+    state.opportunities.forEach(job=>{if(job.company===previousName||job.company===defaultCompany.name)job.company=state.company.name;});
+    persistDemoData();renderCompany();renderManagedOpportunities();renderOpportunities();closeModal();showToast('Company demo profile updated.');return;
   }
 });
 
-document.addEventListener('submit',event=>{if(event.target.id==='login-form'){event.preventDefault();signIn(false);}});
+document.addEventListener('submit',event=>{if(event.target.id==='login-form'){event.preventDefault();signIn(false);}if(event.target.id==='opportunity-form'){event.preventDefault();createOpportunityFromForm();}});
 document.addEventListener('input',event=>{if(event.target.id==='skill-search')renderSkills();if(event.target.id==='candidate-search')renderCandidates();});
-document.addEventListener('change',event=>{if(event.target.id==='candidate-role-filter')renderCandidates();});
+document.addEventListener('change',event=>{
+  if(event.target.id==='candidate-job-filter'){state.selectedCandidateJob=event.target.value;renderCandidates();}
+  if(event.target.id==='application-consent')$('#final-submit-application').disabled=!event.target.checked;
+  if(event.target.matches('.application-status-select')){const application=state.applications.find(item=>item.id===event.target.dataset.applicationId);if(application){application.status=event.target.value;persistDemoData();renderCandidates();renderApplications();showToast('Application status updated.');}}
+});
 document.addEventListener('change',event=>{if(event.target.id==='resume-file')setResumeFile(event.target.files?.[0]);});
 document.addEventListener('dragover',event=>{if(event.target.closest('#resume-drop-zone')){event.preventDefault();$('#resume-drop-zone').classList.add('dragging');}});
 document.addEventListener('dragleave',event=>{if(event.target.closest('#resume-drop-zone'))$('#resume-drop-zone').classList.remove('dragging');});
 document.addEventListener('drop',event=>{const zone=event.target.closest('#resume-drop-zone');if(!zone)return;event.preventDefault();zone.classList.remove('dragging');setResumeFile(event.dataTransfer?.files?.[0]);});
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeModal();});
 
-renderOverview();renderSkills();renderRole();renderPlan();renderCandidates();
+restoreDemoData();renderOverview();renderSkills();renderRole();renderPlan();renderCandidates();renderOpportunities();renderApplications();renderCompany();renderManagedOpportunities();
 updateAuthRole('student');
 (async()=>{try{const response=await fetch('/api/auth/session');if(!response.ok)throw new Error('No active demo session');setAuthenticated(await response.json());}catch(_error){showLogin();}})();
