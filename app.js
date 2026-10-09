@@ -53,7 +53,7 @@ const learningTasks = [
   {title:'Document one design choice',sub:'Explain why your API returns a 404 for a missing recipe.',duration:'45 min',type:'REFLECTION',done:false}
 ];
 
-const state = {skills:initialSkills.map(x=>({...x})), page:'overview', filter:'all', role:'Junior Software Engineer', selectedRole:'Junior Software Engineer', pendingResumeFile:null, parsedResume:null};
+const state = {skills:initialSkills.map(x=>({...x})), page:'overview', filter:'all', role:'Junior Software Engineer', selectedRole:'Junior Software Engineer', pendingResumeFile:null, parsedResume:null, authRole:'student', auth:null};
 const $ = (selector,root=document)=>root.querySelector(selector);
 const $$ = (selector,root=document)=>Array.from(root.querySelectorAll(selector));
 const escapeHtml = value => String(value).replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -130,14 +130,60 @@ function renderPassport(){
 
 function showPage(name){
   if(!$('#page-'+name))return;
+  if(name==='candidates'&&state.auth?.role!=='recruiter')return;
+  if(['overview','skills','roles','learning'].includes(name)&&state.auth?.role==='recruiter')return;
   state.page=name;
   $$('.page-view').forEach(page=>page.classList.toggle('active',page.id==='page-'+name));
   $$('.nav-link').forEach(link=>link.classList.toggle('active',link.dataset.page===name));
-  const title={overview:'Overview',skills:'My skills',roles:'Role match',learning:'Learning plan',passport:'Public view'}[name]||'Overview';
+  const title={overview:'Overview',skills:'My skills',roles:'Role match',learning:'Learning plan',passport:'Public view',candidates:'Candidate pool'}[name]||'Overview';
   $('#breadcrumb-page').textContent=title;
   $('#sidebar').classList.remove('open');
-  if(name==='skills')renderSkills(); if(name==='roles')renderRole(); if(name==='learning')renderPlan(); if(name==='passport')renderPassport();
+  if(name==='skills')renderSkills(); if(name==='roles')renderRole(); if(name==='learning')renderPlan(); if(name==='passport')renderPassport(); if(name==='candidates')renderCandidates();
   window.scrollTo({top:0,behavior:'smooth'});
+}
+
+const demoAccounts={student:{email:'student@proofolio.demo',password:'StudentDemo!23',name:'Aarav Shah'},recruiter:{email:'recruiter@proofolio.demo',password:'RecruiterDemo!23',name:'Maya Recruiter'}};
+function updateAuthRole(role){
+  state.authRole=role;
+  $$('.auth-role-tab').forEach(tab=>{const active=tab.dataset.authRole===role;tab.classList.toggle('active',active);tab.setAttribute('aria-selected',String(active));});
+  const account=demoAccounts[role];$('#login-email').value=account.email;$('#login-password').value=account.password;
+  $('#demo-login').innerHTML=`Continue as a ${role} <span>↗</span>`;
+  $('#auth-credentials').innerHTML=`Demo ${role} · <strong>${account.email}</strong><br />Password · <strong>${account.password}</strong>`;
+  $('#login-error').hidden=true;
+}
+function setAuthenticated(user){
+  state.auth=user;document.body.classList.toggle('recruiter-mode',user.role==='recruiter');
+  $('#auth-screen').hidden=true;$('.app-shell').hidden=false;
+  $('.recruiter-nav').hidden=user.role!=='recruiter';
+  const display=user.display_name||demoAccounts[user.role].name;
+  $('.profile-name strong').textContent=display;$('.profile-name small').textContent=user.role==='recruiter'?'Recruiter demo':'Student demo';
+  const initials=display.split(/\s+/).map(part=>part[0]).slice(0,2).join('').toUpperCase();
+  $('.avatar-small').textContent=initials;$('.top-avatar').textContent=initials;
+  showPage(user.role==='recruiter'?'candidates':'overview');
+}
+function showLogin(){
+  state.auth=null;document.body.classList.remove('recruiter-mode');$('.app-shell').hidden=true;$('#auth-screen').hidden=false;updateAuthRole(state.authRole||'student');
+}
+async function authRequest(path,payload){
+  const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const result=await response.json();if(!response.ok)throw new Error(result.error||'Could not sign in. Try again.');return result;
+}
+async function signIn(demo){
+  const error=$('#login-error');error.hidden=true;
+  try{
+    const user=await authRequest(demo?'/api/auth/demo':'/api/auth/login',demo?{role:state.authRole}:{role:state.authRole,email:$('#login-email').value.trim(),password:$('#login-password').value});
+    setAuthenticated(user);
+  }catch(err){error.textContent=err instanceof TypeError?'Could not connect to Proofolio. Start it with `python server.py`.':err.message;error.hidden=false;}
+}
+async function signOut(){
+  try{await fetch('/api/auth/logout',{method:'POST'});}catch(_error){}
+  state.authRole='student';showLogin();
+}
+const sampleCandidates=[{name:'Aarav Shah',initials:'AS',headline:'Computer Science student · Pune, India',role:'Software Engineer',score:74,skills:'Python, React, SQL, API design',evidence:'6 skills linked to 3 project samples',summary:'Strong foundation in backend and frontend work, with source-linked project evidence.'}];
+function renderCandidates(){
+  const query=($('#candidate-search')?.value||'').trim().toLowerCase(),role=$('#candidate-role-filter')?.value||'all';
+  const items=sampleCandidates.filter(candidate=>(role==='all'||candidate.role===role)&&(!query||`${candidate.name} ${candidate.headline} ${candidate.role} ${candidate.skills}`.toLowerCase().includes(query)));
+  $('#candidate-list').innerHTML=items.length?items.map(candidate=>`<article class="candidate-card"><div class="candidate-card-top"><span class="avatar candidate-avatar">${candidate.initials}</span><div class="candidate-identity"><h2>${candidate.name}</h2><p>${candidate.headline}</p></div><span class="candidate-score"><strong>${candidate.score}%</strong><small>evidence match</small></span></div><div class="candidate-role-line"><span>Target role</span><strong>${candidate.role}</strong></div><p class="candidate-summary">${candidate.summary}</p><div class="candidate-skills">${candidate.skills.split(', ').map(skill=>`<span>${skill}</span>`).join('')}</div><div class="candidate-card-foot"><span>✓ ${candidate.evidence}</span><button class="button button-primary" data-page="passport">Review passport <span>→</span></button></div></article>`).join(''):'<div class="empty-state"><strong>No candidates match</strong>Change the search or role filter.</div>';
 }
 
 function openModal(title,subtitle,body,actions=''){
@@ -250,6 +296,9 @@ function openEditProfile(){
 }
 
 document.addEventListener('click',event=>{
+  const authTab=event.target.closest('[data-auth-role]');if(authTab){updateAuthRole(authTab.dataset.authRole);return;}
+  if(event.target.id==='demo-login'){signIn(true);return;}
+  if(event.target.id==='signout-button'){signOut();return;}
   const pageLink=event.target.closest('[data-page]'); if(pageLink){showPage(pageLink.dataset.page);closeModal();return;}
   const nav=event.target.closest('.nav-link'); if(nav){showPage(nav.dataset.page);return;}
   const skillTarget=event.target.closest('[data-skill]'); if(skillTarget){event.preventDefault();showEvidence(skillById(skillTarget.dataset.skill));return;}
@@ -261,7 +310,7 @@ document.addEventListener('click',event=>{
   if(event.target.id==='edit-profile-button'){openEditProfile();return;}
   if(event.target.id==='mobile-menu'){$('#sidebar').classList.toggle('open');return;}
   if(event.target.id==='notification-button'){showToast('You’re all caught up.');return;}
-  if(event.target.id==='profile-button'){showToast('You’re viewing Aarav’s sample profile.');return;}
+  if(event.target.id==='profile-button'){showToast(state.auth?.role==='recruiter'?'Recruiter demo workspace':'Student demo workspace');return;}
   if(event.target.id==='copy-link-button'||event.target.id==='share-button'){
     const link='https://proofolio.example/passport/aarav-shah';
     if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(link).catch(()=>{});
@@ -288,11 +337,15 @@ document.addEventListener('click',event=>{
   }
 });
 
-document.addEventListener('input',event=>{if(event.target.id==='skill-search')renderSkills();});
+document.addEventListener('submit',event=>{if(event.target.id==='login-form'){event.preventDefault();signIn(false);}});
+document.addEventListener('input',event=>{if(event.target.id==='skill-search')renderSkills();if(event.target.id==='candidate-search')renderCandidates();});
+document.addEventListener('change',event=>{if(event.target.id==='candidate-role-filter')renderCandidates();});
 document.addEventListener('change',event=>{if(event.target.id==='resume-file')setResumeFile(event.target.files?.[0]);});
 document.addEventListener('dragover',event=>{if(event.target.closest('#resume-drop-zone')){event.preventDefault();$('#resume-drop-zone').classList.add('dragging');}});
 document.addEventListener('dragleave',event=>{if(event.target.closest('#resume-drop-zone'))$('#resume-drop-zone').classList.remove('dragging');});
 document.addEventListener('drop',event=>{const zone=event.target.closest('#resume-drop-zone');if(!zone)return;event.preventDefault();zone.classList.remove('dragging');setResumeFile(event.dataTransfer?.files?.[0]);});
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeModal();});
 
-renderOverview();renderSkills();renderRole();renderPlan();
+renderOverview();renderSkills();renderRole();renderPlan();renderCandidates();
+updateAuthRole('student');
+(async()=>{try{const response=await fetch('/api/auth/session');if(!response.ok)throw new Error('No active demo session');setAuthenticated(await response.json());}catch(_error){showLogin();}})();

@@ -15,6 +15,17 @@ python server.py
 
 Open `http://127.0.0.1:5000`. The parser endpoint is served by the same local Flask process; opening `index.html` directly will not enable resume parsing.
 
+## Sign in to the demo
+
+The sign-in page offers separate **Student** and **Recruiter** workspaces. Select a role and choose **Continue as a …** for one-click access, or use the matching credentials below:
+
+| Role | Email | Password |
+| --- | --- | --- |
+| Student | `student@proofolio.demo` | `StudentDemo!23` |
+| Recruiter | `recruiter@proofolio.demo` | `RecruiterDemo!23` |
+
+The student demo opens the skill passport and resume import. The recruiter demo opens a candidate pool with search and role filters, then lets you review the sample passport. The candidate and account data are synthetic. These shared credentials are for the local prototype only; this is not production authentication and it does not provide real user accounts or access control for a public deployment.
+
 ## Resume import
 
 The import flow accepts PDF, DOCX, TXT, and Markdown files up to 10 MB. It extracts selectable PDF text, Word document paragraphs, or plain text, then identifies contact details, common resume section headings, and skill terms from a small, explicit vocabulary. Each skill mention includes a page and line for PDF files, or a text line for DOCX, TXT, and Markdown files.
@@ -31,7 +42,7 @@ Uploads are parsed in memory by a service bound to `127.0.0.1`; this prototype d
 - **Learning plan:** track practical sample tasks.
 - **Public view:** preview a recruiter passport. The share action is illustrative and does not create a hosted profile.
 
-The learner, projects, code excerpts, role requirements, and learning tasks outside resume import are synthetic prototype data. GitHub repository analysis, hosted sharing, accounts, persistence, and production deployment are not implemented.
+The learner, recruiter, projects, code excerpts, role requirements, and learning tasks outside resume import are synthetic prototype data. GitHub repository analysis, hosted sharing, persistent accounts, and production deployment are not implemented. Demo sessions use signed Flask cookies and expire after four hours; configure `PROOFOLIO_SECRET_KEY` if you need a stable local signing key across restarts.
 
 ## Implementation
 
