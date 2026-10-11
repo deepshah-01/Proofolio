@@ -509,8 +509,19 @@ async function createOpportunityFromForm(){
 }
 
 document.addEventListener('click',event=>{
-  if(event.target.id==='start-student'){updateAuthRole('student');showAuthMode('login');return;}
-  if(event.target.id==='start-recruiter'){updateAuthRole('recruiter');showAuthMode('login');return;}
+  const startStudent = event.target.closest('#start-student');
+  if (startStudent) {
+    state.authRole = 'student';
+    showAuthMode('login');
+    return;
+  }
+
+  const startRecruiter = event.target.closest('#start-recruiter');
+  if (startRecruiter) {
+    state.authRole = 'recruiter';
+    showAuthMode('login');
+    return;
+  }
   if(event.target.id==='back-to-roles'){showAuthMode('landing');return;}
   if(event.target.id==='toggle-auth-mode'){showAuthMode(authMode==='register'?'login':'register');return;}
   const authTab=event.target.closest('[data-auth-role]');if(authTab){updateAuthRole(authTab.dataset.authRole);return;}
