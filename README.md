@@ -15,6 +15,12 @@ python server.py
 
 Open `http://127.0.0.1:5000`. The parser endpoint is served by the same local Flask process; opening `index.html` directly will not enable resume parsing.
 
+## Local accounts
+
+The entry page starts with a **Student** or **Company** choice. From either workspace, choose **Create a local account** to register a persistent account for this installation. Student registration collects academic onboarding details; company registration collects recruiter and company details. Passwords use Werkzeug's salted password hash, and sessions use HTTP-only, same-site cookies.
+
+The local account database is `proofolio.db` and is ignored by Git. It is a zero-setup development database, not the production MySQL deployment described in `docs/architecture.md`. Registered students can save reviewed resume claims and project evidence; registered companies open into a recruitment dashboard where they can complete their profile, post persistent opportunities, inspect explainable candidate matches, review applicants, and update statuses. Demo workspaces still use clearly labelled synthetic data so the full sample journey remains available without creating accounts.
+
 ## Sign in to the demo
 
 The sign-in page offers separate **Student** and **Recruiter** workspaces. Select a role and choose **Continue as a …** for one-click access, or use the matching credentials below:

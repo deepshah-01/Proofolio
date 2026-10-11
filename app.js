@@ -9,7 +9,7 @@ const initialSkills = [
   {id:'communication',name:'Team communication',symbol:'↗',className:'git',level:'Growing',score:53,area:'Professional skill',source:'Resume · Aarav_Shah.pdf',sourceType:'resume',description:'Your resume mentions collaboration. A project write-up or review history could make this easier to assess.',evidence:'Resume · Summary',range:'Page 1',excerpt:'Collaborated with a four-person student team to design and deliver a campus events platform.',levelText:'Self-reported',status:'partial'}
 ];
 
-const projects = [
+let projects = [
   {name:'Smart Pantry API',kind:'Backend · Personal project',symbol:'⌘',skills:'Python · SQL · API design'},
   {name:'Campus Connect',kind:'Full stack · Team project',symbol:'✳',skills:'React · JavaScript · Git'},
   {name:'Aarav_Shah.pdf',kind:'Resume · Uploaded sample',symbol:'▤',skills:'Testing · Communication'}
@@ -65,7 +65,7 @@ const $ = (selector,root=document)=>root.querySelector(selector);
 const $$ = (selector,root=document)=>Array.from(root.querySelectorAll(selector));
 const escapeHtml = value => String(value).replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const symbol = skill => `<span class="skill-symbol ${escapeHtml(skill.className)}">${escapeHtml(skill.symbol)}</span>`;
-const skillById = id => state.skills.find(skill=>skill.id===id) || state.skills[0];
+const skillById = id => state.skills.find(skill=>skill.id===id) || state.skills[0] || {id:'no-evidence',name:'No evidence yet',symbol:'+',className:'git',level:'Not added',score:0,area:'Skill claim',source:'No source submitted',sourceType:'resume',description:'Add a reviewed resume claim or a project to begin building the Skill Passport.',evidence:'No evidence',range:'Not available',excerpt:'',levelText:'Not added',status:'gap'};
 
 function renderOverview(){
   const welcome=$('#page-overview .welcome-row h1');if(welcome)welcome.innerHTML=`Good morning, ${escapeHtml(state.profile.name.split(' ')[0])} <span class="wave">✦</span>`;
@@ -145,52 +145,115 @@ function renderPassport(){
 
 function showPage(name){
   if(!$('#page-'+name))return;
-  const recruiterPages=['candidates','manage-jobs','company'];
+  const recruiterPages=['company-dashboard','candidates','manage-jobs','company'];
   const studentPages=['overview','skills','roles','learning','opportunities','applications'];
   if(recruiterPages.includes(name)&&state.auth?.role!=='recruiter')return;
   if(studentPages.includes(name)&&state.auth?.role!=='student')return;
   state.page=name;
   $$('.page-view').forEach(page=>page.classList.toggle('active',page.id==='page-'+name));
   $$('.nav-link').forEach(link=>link.classList.toggle('active',link.dataset.page===name));
-  const title={overview:'Overview',skills:'My skills',roles:'Role match',learning:'Learning plan',passport:'Public view',candidates:'Candidate matching',opportunities:'Opportunities',applications:'Applications',company:'Company profile','manage-jobs':'Manage opportunities'}[name]||'Overview';
+  const title={overview:'Overview',skills:'My skills',roles:'Role match',learning:'Learning plan',passport:'Public view','company-dashboard':'Company dashboard',candidates:'Candidate matching',opportunities:'Opportunities',applications:'Applications',company:'Company profile','manage-jobs':'Manage opportunities'}[name]||'Overview';
   $('#breadcrumb-page').textContent=title;
   $('#sidebar').classList.remove('open');
-  if(name==='skills')renderSkills(); if(name==='roles')renderRole(); if(name==='learning')renderPlan(); if(name==='passport')renderPassport(); if(name==='candidates')renderCandidates(); if(name==='opportunities')renderOpportunities(); if(name==='applications')renderApplications(); if(name==='company')renderCompany(); if(name==='manage-jobs')renderManagedOpportunities();
+  if(name==='skills')renderSkills(); if(name==='roles')renderRole(); if(name==='learning')renderPlan(); if(name==='passport')renderPassport(); if(name==='company-dashboard')renderCompanyDashboard(); if(name==='candidates')renderCandidates(); if(name==='opportunities')renderOpportunities(); if(name==='applications')renderApplications(); if(name==='company')renderCompany(); if(name==='manage-jobs')renderManagedOpportunities();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
 const demoAccounts={student:{email:'student@proofolio.demo',password:'StudentDemo!23',name:'Aarav Shah'},recruiter:{email:'recruiter@proofolio.demo',password:'RecruiterDemo!23',name:'Maya Recruiter'}};
+let authMode='landing';
 function updateAuthRole(role){
   state.authRole=role;
   $$('.auth-role-tab').forEach(tab=>{const active=tab.dataset.authRole===role;tab.classList.toggle('active',active);tab.setAttribute('aria-selected',String(active));});
   const account=demoAccounts[role];$('#login-email').value=account.email;$('#login-password').value=account.password;
   $('#demo-login').innerHTML=`Continue as a ${role} <span>↗</span>`;
   $('#auth-credentials').innerHTML=`Demo ${role} · <strong>${account.email}</strong><br />Password · <strong>${account.password}</strong>`;
+  $('#student-registration-fields').hidden=role!=='student';
+  $('#company-registration-fields').hidden=role!=='recruiter';
   $('#login-error').hidden=true;
+  $('#register-error').hidden=true;
 }
-function setAuthenticated(user){
+function showAuthMode(mode){
+  authMode=mode;
+  $('#role-selection').hidden=mode!=='landing';
+  $('#auth-panel').hidden=mode==='landing';
+  if(mode==='landing')return;
+  const registering=mode==='register';
+  $('#login-form').hidden=registering;
+  $('#register-form').hidden=!registering;
+  $('#demo-area').hidden=registering;
+  $('#auth-form-title').textContent=registering?`Create your ${state.authRole==='student'?'student':'company'} account`:`Sign in as ${state.authRole==='student'?'a student':'a company'}`;
+  $('#auth-form-copy').textContent=registering?'Your local account is private to this Proofolio installation.':'Use your local account or explore the clearly labelled demo.';
+  $('#toggle-auth-mode').textContent=registering?'Already have an account? Sign in':'New here? Create a local account';
+  updateAuthRole(state.authRole);
+}
+function normaliseOpportunity(item){return {...item,id:String(item.id),type:item.type==='full_time'?'full-time':item.type,skills:Array.isArray(item.skills)?item.skills:[],branches:Array.isArray(item.branches)?item.branches:[],graduationYear:item.graduationYear?String(item.graduationYear):'',company:item.company||'Company',experience:item.experience||'Not specified',qualification:item.qualification||'See details',openings:Number(item.openings)||1};}
+function passportSkillRecord(item){const visualByName={Python:['Py','py'],JavaScript:['JS','js'],TypeScript:['TS','js'],React:['R','re'],SQL:['DB','sql'],Git:['⌘','git'],HTML:['H','git'],CSS:['C','git']};const [symbolName,className]=visualByName[item.name]||['SK','git'];const linked=item.evidence_status==='evidence_linked'||item.evidence_status==='independently_verified';return {id:`db-skill-${item.id}`,name:item.name,symbol:symbolName,className,level:linked?'Evidence linked':'Claimed',score:linked?75:20,area:item.category||'Skill',source:item.citation||'Student passport',sourceType:linked?'github':'resume',description:item.description||'Student-reported skill claim.',evidence:item.citation||'No evidence linked',range:linked?'Project evidence':'Self-reported',excerpt:item.description||'',levelText:linked?'Evidence-linked':'Self-reported',status:linked?'supported':'gap'};}
+async function hydratePassport(){
+  try{const response=await fetch('/api/me/passport');if(!response.ok)return;const passport=await response.json();state.skills=passport.skills.map(passportSkillRecord);projects=passport.projects.map(project=>({name:project.title,kind:'Student project',symbol:'✳',skills:project.technologies.join(' · '),description:project.description,repositoryUrl:project.repository_url,deploymentUrl:project.deployment_url}));}catch(_error){}
+}
+async function hydrateWorkspaceData(user){
+  if(user.demo)return;
+  try{
+    if(user.role==='student'){
+      const [opportunities,applications]=await Promise.all([fetch('/api/opportunities'),fetch('/api/me/applications')]);
+      if(opportunities.ok)state.opportunities=(await opportunities.json()).items.map(normaliseOpportunity);
+      if(applications.ok)state.applications=(await applications.json()).items;
+      await hydratePassport();
+    }else{
+      const opportunities=await fetch('/api/company/opportunities');
+      if(opportunities.ok){state.opportunities=(await opportunities.json()).items.map(normaliseOpportunity);state.selectedCandidateJob=state.opportunities[0]?.id||null;}
+    }
+  }catch(_error){showToast('Could not refresh saved workspace data.');}
+}
+async function setAuthenticated(user){
   state.auth=user;document.body.classList.toggle('recruiter-mode',user.role==='recruiter');
+  if(!user.demo){
+    try{const response=await fetch('/api/me/profile');if(response.ok){const profile=await response.json();if(profile.role==='student')state.profile={...state.profile,name:profile.full_name,college:profile.college,branch:profile.branch,graduationYear:String(profile.graduation_year),email:profile.email,headline:`${profile.degree} student · ${profile.college}`};if(profile.role==='recruiter')state.company={...state.company,name:profile.name,industry:profile.industry,description:profile.description,website:profile.website,location:profile.location,contactName:profile.contact_name,officialEmail:profile.official_email};}}catch(_error){}
+  }
+  if(user.role==='recruiter'&&!user.demo){
+    try{const profileResponse=await fetch('/api/me/profile');if(profileResponse.ok){const profile=await profileResponse.json();state.company.verificationStatus=profile.verification_status;}}catch(_error){}
+  }
+  await hydrateWorkspaceData(user);
   $('#auth-screen').hidden=true;$('.app-shell').hidden=false;
   $('.recruiter-nav').hidden=user.role!=='recruiter';
   const display=user.display_name||demoAccounts[user.role].name;
-  $('.profile-name strong').textContent=display;$('.profile-name small').textContent=user.role==='recruiter'?'Recruiter demo':'Student demo';
+  $('.profile-name strong').textContent=display;$('.profile-name small').textContent=user.role==='recruiter'?(user.demo?'Recruiter demo':'Company workspace'):(user.demo?'Student demo':'Student workspace');
   const initials=display.split(/\s+/).map(part=>part[0]).slice(0,2).join('').toUpperCase();
   $('.avatar-small').textContent=initials;$('.top-avatar').textContent=initials;
-  showPage(user.role==='recruiter'?'candidates':'overview');
+  const candidateEyebrow=$('#page-candidates .eyebrow');if(candidateEyebrow)candidateEyebrow.innerHTML=`<span class="eyebrow-dot"></span> RECRUITER WORKSPACE${user.demo?' · DEMO DATA':''}`;
+  renderOverview();renderPassport();renderCompany();showPage(user.role==='recruiter'?'company-dashboard':'overview');
 }
 function showLogin(){
-  state.auth=null;document.body.classList.remove('recruiter-mode');$('.app-shell').hidden=true;$('#auth-screen').hidden=false;updateAuthRole(state.authRole||'student');
+  state.auth=null;document.body.classList.remove('recruiter-mode');$('.app-shell').hidden=true;$('#auth-screen').hidden=false;showAuthMode('landing');
 }
 async function authRequest(path,payload){
   const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const result=await response.json();if(!response.ok)throw new Error(result.error||'Could not sign in. Try again.');return result;
 }
+async function patchRequest(path,payload){
+  const response=await fetch(path,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const result=await response.json();if(!response.ok)throw new Error(result.error||'Could not save changes.');return result;
+}
 async function signIn(demo){
   const error=$('#login-error');error.hidden=true;
   try{
     const user=await authRequest(demo?'/api/auth/demo':'/api/auth/login',demo?{role:state.authRole}:{role:state.authRole,email:$('#login-email').value.trim(),password:$('#login-password').value});
-    setAuthenticated(user);
+    await setAuthenticated(user);
   }catch(err){error.textContent=err instanceof TypeError?'Could not connect to Proofolio. Start it with `python server.py`.':err.message;error.hidden=false;}
+}
+async function registerAccount(){
+  const error=$('#register-error');error.hidden=true;
+  const common={role:state.authRole,email:$('#register-email').value.trim(),password:$('#register-password').value};
+  const details=state.authRole==='student'?{full_name:$('#register-full-name').value.trim(),college:$('#register-college').value.trim(),degree:$('#register-degree').value.trim(),branch:$('#register-branch').value.trim(),current_year:$('#register-current-year').value.trim(),graduation_year:$('#register-graduation-year').value.trim()}:{recruiter_name:$('#register-recruiter-name').value.trim(),company_name:$('#register-company-name').value.trim(),industry:$('#register-industry').value.trim()};
+  try{const user=await authRequest('/api/auth/register',{...common,...details});await setAuthenticated(user);}catch(err){error.textContent=err instanceof TypeError?'Could not connect to Proofolio. Start it with `python server.py`.':err.message;error.hidden=false;}
+}
+async function savePersistentStudentProfile(){
+  const next={...state.profile,name:$('#profile-name-input').value.trim()||state.profile.name,headline:$('#profile-headline-input').value.trim(),college:$('#profile-college-input').value.trim(),branch:$('#profile-branch-input').value.trim(),graduationYear:$('#profile-year-input').value,phone:$('#profile-phone-input').value.trim(),github:$('#profile-github-input').value.trim()};
+  try{await patchRequest('/api/me/profile',{full_name:next.name,college:next.college,branch:next.branch,graduation_year:next.graduationYear});state.profile=next;renderOverview();renderPassport();$('.profile-name strong').textContent=next.name;closeModal();showToast('Profile updated.');}catch(error){showToast(error.message||'Could not save profile changes.');}
+}
+async function savePersistentCompanyProfile(){
+  const previousName=state.company.name;const updated={};for(const key of Object.keys(defaultCompany))updated[key]=$('#company-'+key).value.trim();
+  try{await patchRequest('/api/me/profile',{name:updated.name,industry:updated.industry,description:updated.description,website:updated.website,location:updated.location,contact_name:updated.contactName,official_email:updated.officialEmail});state.company=updated;state.opportunities.forEach(job=>{if(job.company===previousName)job.company=updated.name;});renderCompany();renderManagedOpportunities();closeModal();showToast('Company profile updated.');}catch(error){showToast(error.message||'Could not save company changes.');}
 }
 async function signOut(){
   try{await fetch('/api/auth/logout',{method:'POST'});}catch(_error){}
@@ -217,7 +280,23 @@ function matchForOpportunity(candidate,job){
 function statusClass(value){return String(value||'Submitted').toLowerCase().replace(/\s+/g,'-');}
 function opportunityIsOpen(job){return !job.deadline||new Date(`${job.deadline}T23:59:59`)>=new Date();}
 const applicationStages=['Submitted','Under Review','Shortlisted','Interview','Selected','Rejected'];
+async function renderPersistentCandidates(){
+  const job=state.opportunities.find(item=>item.id===state.selectedCandidateJob)||state.opportunities[0];
+  const selector=$('#candidate-job-filter');
+  if(selector)selector.innerHTML=state.opportunities.map(item=>`<option value="${escapeHtml(item.id)}" ${item.id===job?.id?'selected':''}>${escapeHtml(item.title)} · ${escapeHtml(item.company)}</option>`).join('');
+  if(!job){$('#candidate-list').innerHTML='<div class="empty-state"><strong>No opportunities yet</strong>Publish an opportunity to review consented applicants.</div>';return;}
+  try{
+    const response=await fetch(`/api/company/opportunities/${encodeURIComponent(job.id)}/matches`);
+    if(!response.ok)throw new Error('Could not load candidate matches.');
+    const applications=(await response.json()).items;
+    const query=($('#candidate-search')?.value||'').trim().toLowerCase();
+    const filtered=applications.filter(item=>!query||`${item.name} ${item.branch} ${item.college}`.toLowerCase().includes(query));
+    const options=['Submitted','Under Review','Shortlisted','Interview Scheduled','Selected','Rejected'];
+    $('#candidate-list').innerHTML=filtered.length?filtered.map(item=>{const factors=item.factors.map(factor=>`<div class="match-requirement ${factor.status==='evidence_linked'?'supported':factor.status==='claimed'?'partial':'gap'}"><span class="match-status-icon">${factor.status==='evidence_linked'?'✓':factor.status==='claimed'?'◷':'+'}</span><span><strong>${escapeHtml(factor.skill)}</strong><small>${escapeHtml(factor.citation||'No submitted evidence')}</small></span><em>${factor.status==='evidence_linked'?'Evidence linked':factor.status==='claimed'?'Claimed':'Missing'}</em></div>`).join('');return `<article class="candidate-card match-candidate"><div class="candidate-card-top"><span class="avatar candidate-avatar">${escapeHtml(item.name.split(/\s+/).map(part=>part[0]).slice(0,2).join('').toUpperCase())}</span><div class="candidate-identity"><h2>${escapeHtml(item.name)}</h2><p>${escapeHtml(item.degree)} · ${escapeHtml(item.college)} · Class of ${escapeHtml(item.graduationYear)}</p></div><span class="candidate-score ${item.eligible?'':'ineligible'}"><strong>${item.eligible?`${item.score}%`:'Not eligible'}</strong><small>evidence match</small></span></div><div class="candidate-role-line"><span>Opportunity</span><strong>${escapeHtml(job.title)} · ${escapeHtml(job.company)}</strong></div><div class="eligibility-row ${item.eligible?'eligible':'ineligible'}"><span>${item.eligible?'✓':'!'}</span>${item.eligible?'Meets the branch and graduation-year requirements.':'Does not meet the listed branch or graduation-year requirements.'}</div><div class="match-breakdown"><div class="match-breakdown-head"><strong>Requirement evidence</strong><span>Resume-only claims do not add score.</span></div>${factors}</div><div class="candidate-card-foot"><span>${item.applicationId?`Application status · ${escapeHtml(item.applicationStatus)}`:'Potential match · contact details remain private'}</span><div class="candidate-actions">${item.applicationId?`<label class="status-select-label">Update status<select class="application-status-select" data-persistent-application-id="${escapeHtml(item.applicationId)}">${options.map(status=>`<option value="${escapeHtml(status)}" ${item.applicationStatus===status?'selected':''}>${escapeHtml(status)}</option>`).join('')}</select></label>`:'<span class="applied-badge">No application yet</span>'}</div></div></article>`;}).join(''):'<div class="empty-state"><strong>No candidate profiles yet</strong>Registered students with Skill Passport claims will appear here.</div>';
+  }catch(error){$('#candidate-list').innerHTML=`<div class="empty-state"><strong>Could not load applicants</strong>${escapeHtml(error.message)}</div>`;}
+}
 function renderCandidates(){
+  if(state.auth&&!state.auth.demo&&state.auth.role==='recruiter'){renderPersistentCandidates();return;}
   const query=($('#candidate-search')?.value||'').trim().toLowerCase();
   const job=state.opportunities.find(item=>item.id===state.selectedCandidateJob)||state.opportunities.find(item=>item.id===$('#candidate-job-filter')?.value)||state.opportunities[0];state.selectedCandidateJob=job?.id;
   const selector=$('#candidate-job-filter');if(selector&&job)selector.innerHTML=state.opportunities.map(item=>`<option value="${escapeHtml(item.id)}" ${item.id===job.id?'selected':''}>${escapeHtml(item.title)} · ${escapeHtml(item.company)}</option>`).join('');
@@ -243,9 +322,21 @@ function renderApplications(){
   $('#application-count').textContent=state.applications.length;
   $('#application-list').innerHTML=state.applications.length?state.applications.map(item=>{const job=state.opportunities.find(role=>role.id===item.opportunityId);return `<article class="application-card"><div><span class="opportunity-type">${job?.type==='internship'?'INTERNSHIP':'FULL-TIME'}</span><h2>${escapeHtml(item.title||job?.title||'Opportunity')}</h2><p>${escapeHtml(item.company||job?.company||'Company')} · Applied ${escapeHtml(item.appliedAt||'recently')}</p></div><span class="application-status ${statusClass(item.status)}">${escapeHtml(item.status)}</span><button class="button button-outline" data-opportunity-details="${escapeHtml(item.opportunityId)}">View role</button></article>`;}).join(''):'<div class="empty-state"><strong>No applications yet</strong>Explore an opportunity and apply when its requirements look right for you.</div>';
 }
-function renderCompany(){const company=state.company;$('#company-profile-card').innerHTML=`<div class="company-mark">${escapeHtml(company.name.slice(0,1).toUpperCase())}</div><div class="company-profile-content"><span class="verified-badge">COMPANY PROFILE · DEMO ONLY</span><h2>${escapeHtml(company.name)}</h2><p>${escapeHtml(company.industry)} · ${escapeHtml(company.location)}</p><p class="company-description">${escapeHtml(company.description)}</p><div class="company-profile-details"><span>⌕ ${escapeHtml(company.website)}</span><span>✉ ${escapeHtml(company.officialEmail)}</span><span>Contact · ${escapeHtml(company.contactName)}</span></div></div>`;}
-function renderManagedOpportunities(){
-  $('#managed-opportunity-list').innerHTML=state.opportunities.map(job=>{const apps=state.applications.filter(item=>item.opportunityId===job.id);return `<article class="managed-opportunity-card"><div><span class="opportunity-type">${job.type==='internship'?'INTERNSHIP':'FULL-TIME'} · ${job.openings} OPENING${job.openings===1?'':'S'}</span><h2>${escapeHtml(job.title)}</h2><p>${escapeHtml(job.company)} · ${escapeHtml(job.location)} · ${escapeHtml(job.experience||'Experience not specified')} · Closes ${escapeHtml(job.deadline)}</p></div><div class="managed-opportunity-count"><strong>${apps.length}</strong><span>applications</span></div><div class="managed-opportunity-actions"><button class="button button-outline" data-manage-job="${escapeHtml(job.id)}">Review matches</button><button class="button button-outline" data-opportunity-details="${escapeHtml(job.id)}">Preview</button></div></article>`;}).join('');
+async function renderCompanyDashboard(){
+  const company=state.company;const card=$('#company-setup-card');const stats=$('#company-stats-grid');if(!card||!stats)return;
+  const verification=company.verificationStatus||'unverified';const ready=Boolean(company.name&&company.officialEmail&&company.industry&&company.location);
+  card.innerHTML=`<div><strong>${escapeHtml(company.name||'Complete your company profile')}</strong><p>${ready?'Your profile has the core details needed to publish opportunities.':'Add your industry, location, and official contact details before publishing.'} Verification status: ${escapeHtml(verification.replace(/_/g,' '))}.</p></div><span class="company-setup-status ${ready?'ready':''}">${ready?'Profile ready':'Profile incomplete'}</span>`;
+  let applications=state.applications.length;let shortlisted=state.applications.filter(item=>item.status==='Shortlisted').length;let matches=state.opportunities.length;
+  if(!state.auth?.demo){try{const result=await Promise.all(state.opportunities.map(job=>fetch(`/api/company/opportunities/${encodeURIComponent(job.id)}/matches`).then(response=>response.ok?response.json():{items:[]})));applications=result.reduce((sum,item)=>sum+item.items.filter(candidate=>candidate.applicationId).length,0);shortlisted=result.reduce((sum,item)=>sum+item.items.filter(candidate=>candidate.applicationStatus==='Shortlisted').length,0);matches=result.reduce((sum,item)=>sum+item.items.filter(candidate=>candidate.eligible).length,0);}catch(_error){}}
+  const active=state.opportunities.filter(job=>opportunityIsOpen(job)).length;
+  stats.innerHTML=[['Active opportunities',active],['Potential matches',matches],['Applications',applications],['Shortlisted',shortlisted]].map(([label,value])=>`<article class="company-stat"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></article>`).join('');
+}
+function renderCompany(){const company=state.company;const status=(company.verificationStatus||'demo only').replace(/_/g,' ');$('#company-profile-card').innerHTML=`<div class="company-mark">${escapeHtml(company.name.slice(0,1).toUpperCase())}</div><div class="company-profile-content"><span class="verified-badge">COMPANY · ${escapeHtml(status).toUpperCase()}</span><h2>${escapeHtml(company.name)}</h2><p>${escapeHtml(company.industry)} · ${escapeHtml(company.location)}</p><p class="company-description">${escapeHtml(company.description)}</p><div class="company-profile-details"><span>⌕ ${escapeHtml(company.website)}</span><span>✉ ${escapeHtml(company.officialEmail)}</span><span>Contact · ${escapeHtml(company.contactName)}</span></div></div>`;}
+async function renderManagedOpportunities(){
+  const target=$('#managed-opportunity-list');if(!target)return;
+  let applicationCounts={};
+  if(!state.auth?.demo&&state.auth?.role==='recruiter'){try{const results=await Promise.all(state.opportunities.map(job=>fetch(`/api/company/opportunities/${encodeURIComponent(job.id)}/matches`).then(response=>response.ok?response.json():{items:[]})));state.opportunities.forEach((job,index)=>{applicationCounts[job.id]=results[index].items.filter(item=>item.applicationId).length;});}catch(_error){}}
+  target.innerHTML=state.opportunities.length?state.opportunities.map(job=>{const apps=state.auth?.demo?state.applications.filter(item=>item.opportunityId===job.id):Array(applicationCounts[job.id]||0);return `<article class="managed-opportunity-card"><div><span class="opportunity-type">${job.type==='internship'?'INTERNSHIP':'FULL-TIME'} · ${job.openings} OPENING${job.openings===1?'':'S'}</span><h2>${escapeHtml(job.title)}</h2><p>${escapeHtml(job.company)} · ${escapeHtml(job.location)} · ${escapeHtml(job.experience||'Experience not specified')} · Closes ${escapeHtml(job.deadline)}</p></div><div class="managed-opportunity-count"><strong>${apps.length}</strong><span>applications</span></div><div class="managed-opportunity-actions"><button class="button button-outline" data-manage-job="${escapeHtml(job.id)}">Review matches</button><button class="button button-outline" data-opportunity-details="${escapeHtml(job.id)}">Preview</button></div></article>`;}).join(''):'<div class="empty-state"><strong>No opportunities posted</strong>Post an internship or full-time opportunity to begin matching candidates.</div>';
 }
 function openOpportunityDetails(id){
   const job=state.opportunities.find(item=>item.id===id);if(!job)return;
@@ -257,9 +348,10 @@ function openOpportunityDetails(id){
     : '<p>Company details are not available for this other sample listing.</p>';
   openModal(escapeHtml(job.title),`${escapeHtml(job.company)} · ${job.type==='internship'?'Internship':'Full-time placement'}`,`<div class="opportunity-detail-body"><p class="opportunity-detail-description">${escapeHtml(job.description)}</p><div class="opportunity-detail-section company-detail"><h3>Company details</h3>${company}</div><div class="opportunity-detail-facts"><div><span>Location</span><strong>${escapeHtml(job.location)}</strong></div><div><span>Compensation</span><strong>${escapeHtml(job.compensation||'Not listed')}</strong></div><div><span>Experience</span><strong>${escapeHtml(job.experience||'Not specified')}</strong></div><div><span>Deadline</span><strong>${escapeHtml(job.deadline)}${open?'':' · Closed'}</strong></div><div><span>Openings</span><strong>${escapeHtml(job.openings)}</strong></div><div><span>Eligible branches</span><strong>${escapeHtml(job.branches.join(', '))}</strong></div><div><span>Graduation year</span><strong>${escapeHtml(job.graduationYear||'Not specified')}</strong></div></div><div class="opportunity-detail-section"><h3>Qualifications</h3><p>${escapeHtml(job.qualification)}</p></div><div class="opportunity-detail-section"><h3>Required skills</h3><div class="opportunity-skills">${job.skills.map(skill=>`<span>${escapeHtml(skill)}</span>`).join('')}</div></div><div class="opportunity-detail-section"><h3>Your match · ${match.eligible?`${match.score}%`:'Not eligible'}</h3><p>${match.eligible?`${match.matched.length} supported, ${match.partial.length} partial, ${match.missing.length} gaps. Resume-only mentions do not count as work evidence.`:'Your current branch or graduation year does not meet the listed eligibility rules.'}</p><div class="match-breakdown">${skillReasons}</div></div><div class="parsed-disclaimer">Sample opportunity for demonstration only. Match score is deterministic guidance; it is not an AI hiring decision.</div></div>`,`<div class="modal-actions"><button class="button button-outline" data-close>Close</button>${applied?'<span class="applied-badge">✓ Application submitted</span>':`<button class="button button-primary" data-confirm-apply="${escapeHtml(job.id)}" ${!match.eligible||!open?'disabled':''}>Apply now</button>`}</div>`);
 }
-function submitApplication(id){
+async function submitApplication(id){
   const job=state.opportunities.find(item=>item.id===id);if(!job||state.applications.some(item=>item.opportunityId===id))return;
   const match=opportunityMatch(job);if(!opportunityIsOpen(job)){showToast('The application deadline has passed.');return;}if(!match.eligible){showToast('Your profile does not meet the listed eligibility rules.');return;}
+  if(!state.auth?.demo){try{await authRequest(`/api/opportunities/${encodeURIComponent(id)}/applications`,{consent:true});await hydrateWorkspaceData(state.auth);closeModal();renderApplications();renderOpportunities();showToast('Application submitted.');return;}catch(error){showToast(error.message||'Could not submit the application.');return;}}
   const today=new Intl.DateTimeFormat('en-IN',{day:'numeric',month:'short',year:'numeric'}).format(new Date());
   state.applications.push({id:`application-${Date.now()}`,opportunityId:id,title:job.title,company:job.company,status:'Submitted',appliedAt:today,candidate:{...profileCandidate(),email:state.profile.email,phone:state.profile.phone,college:state.profile.college}});persistDemoData();closeModal();renderApplications();renderOpportunities();renderManagedOpportunities();renderCandidates();showToast('Application submitted in this local demo.');
 }
@@ -337,7 +429,7 @@ function openResumeReview(result){
   openModal('Resume review',`${escapeHtml(result.file_name)} · ${fileDetails}`,`<div class="parse-result"><div class="parse-summary"><div class="parse-summary-card"><span>Skill terms</span><strong>${result.skills.length} found</strong></div><div class="parse-summary-card"><span>Text extracted</span><strong>${result.character_count.toLocaleString()} characters</strong></div></div><div class="parse-section-title">Contact details <small>Correct before saving</small></div>${contactCards}<div class="parse-section-title">Skill mentions <small>Uncheck any incorrect match</small></div><div class="parsed-skill-list">${skillCards}</div><div class="parse-section-title">Sections detected <small>Headings, not quality ratings</small></div><div class="parsed-sections">${sections}</div><div class="parsed-disclaimer">Resume terms stay self-reported and separate from project evidence. Resume contents are not stored by the parser.</div></div>`,'<div class="modal-actions"><button class="button button-outline" data-close>Discard</button><button class="button button-primary" id="add-resume-claims-button">Save reviewed details</button></div>');
 }
 
-function addResumeClaims(){
+async function addResumeClaims(){
   const parsed=state.parsedResume;
   if(!parsed)return;
   state.profile.name=$('#resume-contact-name').value.trim()||state.profile.name;
@@ -345,6 +437,9 @@ function addResumeClaims(){
   state.profile.phone=$('#resume-contact-phone').value.trim()||state.profile.phone||'';
   $('.profile-name strong').textContent=state.profile.name;const profileInitials=state.profile.name.split(/\s+/).map(part=>part[0]).slice(0,2).join('').toUpperCase();$('.avatar-small').textContent=profileInitials;$('.top-avatar').textContent=profileInitials;
   parsed.skills=parsed.skills.filter((_skill,index)=>$(`.resume-skill-check[data-skill-index="${index}"]`)?.checked);
+  if(!state.auth?.demo&&parsed.skills.length){
+    try{await Promise.all(parsed.skills.map(mention=>authRequest('/api/me/skills',{name:mention.name,category:'Resume mention',source:'resume',evidence_status:'self_reported',description:'This term was reviewed from the submitted resume.',citation:mention.page?`Resume page ${mention.page}, line ${mention.line}`:`Resume line ${mention.line}`})));await hydratePassport();}catch(error){showToast(error.message||'Could not save the reviewed skill claims.');return;}
+  }
   persistDemoData();
   if(parsed.skills.length===0){
     renderOverview();renderPassport();
@@ -370,6 +465,17 @@ function addResumeClaims(){
   showToast(added?`${added} resume mention${added===1?'':'s'} added. They remain unverified.`:'Those resume mentions are already in the profile.');
 }
 
+function openProjectComposer(){
+  openModal('Add project evidence','Projects can support skills, but are not independently verified by adding a link.',`<form class="modal-body" id="project-form"><label class="form-label" for="project-title">Project title</label><input class="form-input" id="project-title" required maxlength="160" /><label class="form-label" for="project-description">What did you build?</label><textarea class="form-input form-textarea" id="project-description" required maxlength="2000"></textarea><label class="form-label" for="project-technologies">Technologies <small>comma-separated</small></label><input class="form-input" id="project-technologies" required placeholder="Python, SQL, React" /><label class="form-label" for="project-repository">Repository URL <small>optional</small></label><input class="form-input" id="project-repository" type="url" placeholder="https://github.com/..." /><label class="form-label" for="project-deployment">Live deployment URL <small>optional</small></label><input class="form-input" id="project-deployment" type="url" placeholder="https://..." /><label class="form-label" for="project-outcomes">Outcomes <small>optional</small></label><input class="form-input" id="project-outcomes" maxlength="1000" /><p class="form-help">Skills linked to this project are marked evidence-linked. They are not independently verified.</p><button type="submit" hidden></button></form>`,`<div class="modal-actions"><button class="button button-outline" data-close>Cancel</button><button class="button button-primary" id="save-project-button">Save project</button></div>`);
+}
+async function saveProject(){
+  const form=$('#project-form');if(!form?.reportValidity())return;
+  const value=id=>$('#'+id).value.trim();
+  const payload={title:value('project-title'),description:value('project-description'),technologies:value('project-technologies').split(',').map(item=>item.trim()).filter(Boolean),repository_url:value('project-repository'),deployment_url:value('project-deployment'),outcomes:value('project-outcomes')};
+  if(!state.auth?.demo){try{await authRequest('/api/me/projects',payload);await hydratePassport();renderOverview();renderSkills();renderRole();renderPassport();closeModal();showToast('Project evidence added.');}catch(error){showToast(error.message||'Could not save the project.');}return;}
+  projects.unshift({name:payload.title,kind:'Student project',symbol:'✳',skills:payload.technologies.join(' · ')});payload.technologies.forEach(name=>{if(!state.skills.some(skill=>skill.name.toLowerCase()===name.toLowerCase()))state.skills.push(passportSkillRecord({id:`demo-${name}`,name,category:'Project technology',source:'project',evidence_status:'evidence_linked',description:`Linked to project: ${payload.title}`,citation:payload.title}));});renderOverview();renderPassport();closeModal();showToast('Demo project evidence added.');
+}
+
 function openRolePicker(){
   const choices=['Junior Software Engineer','Frontend Developer','Data Analyst'];
   openModal('Choose a target role','We’ll compare your evidence against the role requirements.',`<div class="modal-body">${choices.map((role,index)=>`<label class="role-choice ${role===state.role?'selected':''}"><span class="role-choice-icon">${index===0?'⌘':index===1?'✳':'▤'}</span><span><strong>${role}</strong><small>${index===0?'Build and maintain software systems':index===1?'Create accessible, responsive interfaces':'Turn data into useful insights'}</small></span><input type="radio" name="role" value="${role}" ${role===state.role?'checked':''}></label>`).join('')}</div>`,'<div class="modal-actions"><button class="button button-outline" data-close>Cancel</button><button class="button button-primary" id="save-role-button">Use this role</button></div>');
@@ -392,14 +498,21 @@ function confirmApplication(id){
   const job=state.opportunities.find(item=>item.id===id);if(!job)return;
   openModal('Confirm your application',`Apply to ${escapeHtml(job.title)} at ${escapeHtml(job.company)}?`,'<div class="modal-body"><p class="opportunity-detail-description">Your application in this local demo includes your name, contact email, education summary, skill passport and cited work evidence. Your uploaded resume file is not attached or stored.</p><div class="privacy-consent"><span>◈</span><p>This shares the sample profile with the sample company workspace in this browser, so you can view the recruiter flow. Track status changes from Applications.</p></div><label class="consent-check"><input id="application-consent" type="checkbox" /> I understand this is a sample application and consent to share the profile details above.</label></div>','<div class="modal-actions"><button class="button button-outline" data-close>Cancel</button><button class="button button-primary" id="final-submit-application" data-opportunity-id="'+escapeHtml(id)+'" disabled>Submit application</button></div>');
 }
-function createOpportunityFromForm(){
+async function createOpportunityFromForm(){
   const form=$('#opportunity-form');if(!form?.reportValidity())return;
   const value=id=>$('#'+id).value.trim();const name=value('job-title');
   const job={id:`custom-${Date.now()}`,title:name,company:state.company.name,type:value('job-type'),description:value('job-description'),skills:value('job-skills').split(',').map(x=>x.trim()).filter(Boolean),branches:value('job-branches').split(',').map(x=>x.trim()).filter(Boolean),graduationYear:value('job-year'),qualification:value('job-qualification'),experience:value('job-experience'),location:value('job-location'),compensation:value('job-compensation')||'Not listed',openings:Number(value('job-openings')),deadline:value('job-deadline')};
+  if(!state.auth?.demo){
+    try{await authRequest('/api/opportunities',{title:job.title,opportunity_type:job.type==='full-time'?'full_time':job.type,description:job.description,required_skills:job.skills,eligible_branches:job.branches,graduation_year:Number(job.graduationYear),location:job.location,work_mode:job.location.toLowerCase().includes('remote')?'remote':'on_site',compensation:job.compensation,application_deadline:job.deadline,status:'published'});await hydrateWorkspaceData(state.auth);closeModal();renderManagedOpportunities();renderCandidates();renderOpportunities();showToast('Opportunity published.');return;}catch(error){showToast(error.message||'Could not publish the opportunity.');return;}
+  }
   state.opportunities.unshift(job);state.selectedCandidateJob=job.id;const selector=$('#candidate-job-filter');if(selector)selector.value=job.id;persistDemoData();closeModal();renderManagedOpportunities();renderCandidates();renderOpportunities();showToast('Demo opportunity published.');
 }
 
 document.addEventListener('click',event=>{
+  if(event.target.id==='start-student'){updateAuthRole('student');showAuthMode('login');return;}
+  if(event.target.id==='start-recruiter'){updateAuthRole('recruiter');showAuthMode('login');return;}
+  if(event.target.id==='back-to-roles'){showAuthMode('landing');return;}
+  if(event.target.id==='toggle-auth-mode'){showAuthMode(authMode==='register'?'login':'register');return;}
   const authTab=event.target.closest('[data-auth-role]');if(authTab){updateAuthRole(authTab.dataset.authRole);return;}
   if(event.target.id==='demo-login'){signIn(true);return;}
   if(event.target.id==='signout-button'){signOut();return;}
@@ -416,10 +529,13 @@ document.addEventListener('click',event=>{
   if(event.target.id==='modal-backdrop'){closeModal();return;}
   const filter=event.target.closest('[data-filter]');if(filter){state.filter=filter.dataset.filter;$$('.filter-pill').forEach(x=>x.classList.toggle('active',x===filter));renderSkills();return;}
   if(event.target.id==='add-work-button'||event.target.id==='skills-add-work'){openAddWork();return;}
+  if(event.target.id==='add-project-button'){openProjectComposer();return;}
+  if(event.target.id==='save-project-button'){saveProject();return;}
   if(event.target.id==='edit-role-button'){openRolePicker();return;}
   if(event.target.id==='edit-profile-button'){openEditProfile();return;}
   if(event.target.id==='company-edit-button'){openCompanyEditor();return;}
   if(event.target.id==='post-opportunity-button'){openOpportunityComposer();return;}
+  if(event.target.id==='dashboard-post-opportunity'){openOpportunityComposer();return;}
   if(event.target.id==='save-opportunity-button'){createOpportunityFromForm();return;}
   if(event.target.id==='mobile-menu'){$('#sidebar').classList.toggle('open');return;}
   if(event.target.id==='notification-button'){showToast('You’re all caught up.');return;}
@@ -444,10 +560,12 @@ document.addEventListener('click',event=>{
     const checked=$('input[name="role"]:checked');if(checked){state.role=checked.value;state.selectedRole=state.role;closeModal();renderRole();showToast('Role match updated for '+state.role+'.');}return;
   }
   if(event.target.id==='save-profile-button'){
+    if(!state.auth?.demo){savePersistentStudentProfile();return;}
     state.profile={...state.profile,name:$('#profile-name-input').value.trim()||defaultProfile.name,headline:$('#profile-headline-input').value.trim(),college:$('#profile-college-input').value.trim(),branch:$('#profile-branch-input').value.trim(),graduationYear:$('#profile-year-input').value,email:$('#profile-email-input').value.trim(),phone:$('#profile-phone-input').value.trim(),github:$('#profile-github-input').value.trim()};
     persistDemoData();renderOverview();renderPassport();$('.profile-name strong').textContent=state.profile.name;const initials=state.profile.name.split(/\s+/).map(part=>part[0]).slice(0,2).join('').toUpperCase();$('.avatar-small').textContent=initials;$('.top-avatar').textContent=initials;closeModal();showToast('Sample profile updated.');return;
   }
   if(event.target.id==='save-company-button'){
+    if(!state.auth?.demo){savePersistentCompanyProfile();return;}
     const previousName=state.company.name;
     const updated={};for(const key of Object.keys(defaultCompany))updated[key]=$('#company-'+key).value.trim();
     if(!updated.name||!updated.officialEmail){showToast('Add a company name and contact email first.');return;}
@@ -457,12 +575,18 @@ document.addEventListener('click',event=>{
   }
 });
 
-document.addEventListener('submit',event=>{if(event.target.id==='login-form'){event.preventDefault();signIn(false);}if(event.target.id==='opportunity-form'){event.preventDefault();createOpportunityFromForm();}});
+document.addEventListener('submit',event=>{if(event.target.id==='login-form'){event.preventDefault();signIn(false);}if(event.target.id==='register-form'){event.preventDefault();registerAccount();}if(event.target.id==='opportunity-form'){event.preventDefault();createOpportunityFromForm();}if(event.target.id==='project-form'){event.preventDefault();saveProject();}});
 document.addEventListener('input',event=>{if(event.target.id==='skill-search')renderSkills();if(event.target.id==='candidate-search')renderCandidates();});
 document.addEventListener('change',event=>{
   if(event.target.id==='candidate-job-filter'){state.selectedCandidateJob=event.target.value;renderCandidates();}
   if(event.target.id==='application-consent')$('#final-submit-application').disabled=!event.target.checked;
-  if(event.target.matches('.application-status-select')){const application=state.applications.find(item=>item.id===event.target.dataset.applicationId);if(application){application.status=event.target.value;persistDemoData();renderCandidates();renderApplications();showToast('Application status updated.');}}
+  if(event.target.matches('.application-status-select')){
+    if(event.target.dataset.persistentApplicationId){
+      authRequest(`/api/company/applications/${encodeURIComponent(event.target.dataset.persistentApplicationId)}/status`,{status:event.target.value}).then(()=>{renderPersistentCandidates();showToast('Application status updated.');}).catch(error=>{showToast(error.message||'Could not update the status.');renderPersistentCandidates();});
+      return;
+    }
+    const application=state.applications.find(item=>item.id===event.target.dataset.applicationId);if(application){application.status=event.target.value;persistDemoData();renderCandidates();renderApplications();showToast('Application status updated.');}
+  }
 });
 document.addEventListener('change',event=>{if(event.target.id==='resume-file')setResumeFile(event.target.files?.[0]);});
 document.addEventListener('dragover',event=>{if(event.target.closest('#resume-drop-zone')){event.preventDefault();$('#resume-drop-zone').classList.add('dragging');}});
@@ -472,4 +596,4 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape')closeModal()
 
 restoreDemoData();renderOverview();renderSkills();renderRole();renderPlan();renderCandidates();renderOpportunities();renderApplications();renderCompany();renderManagedOpportunities();
 updateAuthRole('student');
-(async()=>{try{const response=await fetch('/api/auth/session');if(!response.ok)throw new Error('No active demo session');setAuthenticated(await response.json());}catch(_error){showLogin();}})();
+(async()=>{try{const response=await fetch('/api/auth/session');if(!response.ok)throw new Error('No active session');await setAuthenticated(await response.json());}catch(_error){showLogin();}})();
