@@ -162,15 +162,30 @@ function showPage(name){
 const demoAccounts={student:{email:'student@proofolio.demo',password:'StudentDemo!23',name:'Aarav Shah'},recruiter:{email:'recruiter@proofolio.demo',password:'RecruiterDemo!23',name:'Maya Recruiter'}};
 let authMode='landing';
 function updateAuthRole(role){
-  state.authRole=role;
-  $$('.auth-role-tab').forEach(tab=>{const active=tab.dataset.authRole===role;tab.classList.toggle('active',active);tab.setAttribute('aria-selected',String(active));});
-  const account=demoAccounts[role];$('#login-email').value=account.email;$('#login-password').value=account.password;
-  $('#demo-login').innerHTML=`Continue as a ${role} <span>↗</span>`;
-  $('#auth-credentials').innerHTML=`Demo ${role} · <strong>${account.email}</strong><br />Password · <strong>${account.password}</strong>`;
-  $('#student-registration-fields').hidden=role!=='student';
-  $('#company-registration-fields').hidden=role!=='recruiter';
-  $('#login-error').hidden=true;
-  $('#register-error').hidden=true;
+  state.authRole = role;
+  $$('.auth-role-tab').forEach(tab => {
+    const active = tab.dataset.authRole === role;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', String(active));
+  });
+
+  const registering = authMode === 'register';
+  const titleEl = $('#auth-form-title');
+  if (titleEl) {
+    titleEl.textContent = registering
+      ? `Create your ${role === 'student' ? 'student' : 'company'} account`
+      : `Sign in as ${role === 'student' ? 'a student' : 'a company'}`;
+  }
+
+  const account = demoAccounts[role];
+  $('#login-email').value = account.email;
+  $('#login-password').value = account.password;
+  $('#demo-login').innerHTML = `Continue as a ${role === 'student' ? 'student' : 'company'} <span>↗</span>`;
+  $('#auth-credentials').innerHTML = `Demo ${role === 'student' ? 'student' : 'company'} · <strong>${account.email}</strong><br />Password · <strong>${account.password}</strong>`;
+  $('#student-registration-fields').hidden = role !== 'student';
+  $('#company-registration-fields').hidden = role !== 'recruiter';
+  $('#login-error').hidden = true;
+  $('#register-error').hidden = true;
 }
 function showAuthMode(mode){
   authMode=mode;
